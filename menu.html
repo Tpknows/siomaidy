@@ -1,4 +1,4 @@
-<!-- Last updated: 2026-07-23 | TP | Change: upgraded typography to Playfair Display + Inter (was Georgia/Helvetica) for a simpler, more premium look -->
+<!-- Last updated: 2026-07-23 | TP | Change: fixed JPG export cutting off the logo badge — html2canvas now rasterizes SVGs via onclone before capture instead of rendering them live -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -308,7 +308,26 @@ function renderJpg() {
     scale: 3,
     useCORS: true,
     scrollX: 0,
-    scrollY: 0
+    scrollY: 0,
+    onclone: function(clonedDoc) {
+      // html2canvas sometimes partially renders complex inline <svg> elements
+      // (paths/ellipses get cut off, especially at higher scale). Swapping
+      // each svg for a rasterized <img> in the clone fixes this reliably.
+      clonedDoc.querySelectorAll('svg').forEach(function(svg) {
+        var svgString = new XMLSerializer().serializeToString(svg);
+        var dataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+        var img = document.createElement('img');
+        img.src = dataUri;
+        img.className = svg.getAttribute('class') || '';
+        var rect = svg.getBoundingClientRect();
+        img.style.width = rect.width + 'px';
+        img.style.height = rect.height + 'px';
+        img.style.display = 'block';
+        if (svg.parentNode) {
+          svg.parentNode.replaceChild(img, svg);
+        }
+      });
+    }
   }).then(canvas => {
     const link = document.createElement('a');
     link.download = 'siomai-d-menu.jpg';
