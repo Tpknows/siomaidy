@@ -1,0 +1,490 @@
+<!-- Last updated: 2026-07-23 | TP | Change: upgraded typography to Playfair Display + Inter (was Georgia/Helvetica) for a simpler, more premium look -->
+<!DOCTYPE html>
+<html lang="fil">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siomai D' — Order</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1008;
+    font-family: 'Inter', Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    color: #F3E7C9;
+  }
+
+  header {
+    background: #2B1610;
+    border-bottom: 2px solid #C9A24B;
+    padding: 18px 20px;
+    text-align: center;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    color: #C9A24B;
+    letter-spacing: 1px;
+  }
+
+  header p {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 11px;
+    color: #B79A6E;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+  }
+
+  .section-label {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #C9A24B;
+    margin-bottom: 10px;
+    margin-top: 28px;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    background: #3A2015;
+    border: 1px solid #5C4326;
+    border-radius: 6px;
+    color: #F3E7C9;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 15px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: #C9A24B;
+  }
+
+  .field input::placeholder { color: #7a6040; }
+
+  .field select option { background: #2B1610; }
+
+  .toggle-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #5C4326;
+    background: #3A2015;
+    color: #B79A6E;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .toggle-btn.active {
+    background: #C9A24B;
+    border-color: #C9A24B;
+    color: #2B1610;
+    font-weight: bold;
+  }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .menu-item-card {
+    background: #3A2015;
+    border: 1px solid #5C4326;
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .menu-item-card .info .name {
+    font-size: 15px;
+    color: #F3E7C9;
+  }
+
+  .menu-item-card .info .price {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 13px;
+    color: #C9A24B;
+    margin-top: 2px;
+  }
+
+  .qty-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .qty-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #C9A24B;
+    background: transparent;
+    color: #C9A24B;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+
+  .qty-btn:hover { background: rgba(201,162,75,0.2); }
+
+  .qty-num {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    color: #F3E7C9;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .order-summary {
+    background: #2B1610;
+    border: 1px solid #C9A24B;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 10px;
+  }
+
+  .summary-row {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    color: #B79A6E;
+  }
+
+  .summary-row.total {
+    font-size: 18px;
+    font-weight: bold;
+    color: #C9A24B;
+    border-top: 1px solid #5C4326;
+    margin-top: 8px;
+    padding-top: 10px;
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  .submit-btn {
+    width: 100%;
+    background: #C9A24B;
+    color: #2B1610;
+    border: none;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 16px;
+    letter-spacing: 0.5px;
+    transition: background 0.2s;
+  }
+
+  .submit-btn:hover { background: #dbb45c; }
+  .submit-btn:disabled { background: #5C4326; color: #8a6a4a; cursor: not-allowed; }
+
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+  }
+
+  .success-screen .check {
+    font-size: 60px;
+    margin-bottom: 16px;
+  }
+
+  .success-screen h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    color: #C9A24B;
+    font-size: 26px;
+    margin-bottom: 8px;
+  }
+
+  .success-screen p {
+    font-family: 'Inter', Helvetica, sans-serif;
+    color: #B79A6E;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .order-again-btn {
+    margin-top: 28px;
+    background: transparent;
+    border: 1px solid #C9A24B;
+    color: #C9A24B;
+    padding: 12px 28px;
+    border-radius: 6px;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .error-msg {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 12px;
+    color: #e06060;
+    margin-top: 6px;
+    display: none;
+  }
+
+  .note-input {
+    width: 100%;
+    background: #3A2015;
+    border: 1px solid #5C4326;
+    border-radius: 6px;
+    color: #F3E7C9;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 14px;
+    padding: 11px 14px;
+    outline: none;
+    resize: none;
+    height: 70px;
+    transition: border-color 0.2s;
+  }
+  .note-input:focus { border-color: #C9A24B; }
+  .note-input::placeholder { color: #7a6040; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Siomai D'</h1>
+  <p>Meaning of being hungry</p>
+</header>
+
+<div class="container" id="orderForm">
+
+  <div class="section-label">Your Info</div>
+  <div class="field">
+    <input type="text" id="custName" placeholder="Your name" maxlength="60">
+    <div class="error-msg" id="errName">Pakiusap ilagay ang pangalan mo.</div>
+  </div>
+
+  <div style="height:10px"></div>
+  <div class="field">
+    <input type="text" id="custContact" placeholder="Contact number (optional)" maxlength="20">
+  </div>
+
+  <div class="section-label">Delivery or Pickup?</div>
+  <div class="toggle-row">
+    <div class="toggle-btn active" id="btnDelivery" onclick="setMode('delivery')">🛵 Delivery</div>
+    <div class="toggle-btn" id="btnPickup" onclick="setMode('pickup')">🏃 Pickup</div>
+  </div>
+
+  <div id="addressField" style="margin-top:10px;">
+    <div class="field">
+      <input type="text" id="custAddress" placeholder="Delivery address" maxlength="120">
+      <div class="error-msg" id="errAddress">Pakiusap ilagay ang address para sa delivery.</div>
+    </div>
+  </div>
+
+  <div class="section-label">Your Order</div>
+  <div class="items-list" id="itemsList"></div>
+  <div class="error-msg" id="errItems" style="display:none; margin-top:6px;">Pumili ng hindi bababa sa isang item.</div>
+
+  <div class="section-label">Notes (optional)</div>
+  <textarea class="note-input" id="custNote" placeholder="e.g. extra sauce, less spicy…"></textarea>
+
+  <div class="section-label">Order Summary</div>
+  <div class="order-summary" id="summaryBox">
+    <div class="summary-row" style="color:#7a6040; font-style:italic;">Walang napili pa.</div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitOrder()">Place Order</button>
+
+</div>
+
+<div class="container success-screen" id="successScreen">
+  <div class="check">✅</div>
+  <h2>Order Placed!</h2>
+  <p id="successName"></p>
+  <p id="successMode"></p>
+  <p style="margin-top:12px; color:#C9A24B; font-size:16px;" id="successTotal"></p>
+  <button class="order-again-btn" onclick="resetForm()">Place Another Order</button>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzB2IajsTUZ6-bWDQjJbu9KLyZ1KrGIj09O7pD7xmYqPFSBj_QhQ092J7thBTocSuo2/exec';
+
+const MENU = [
+  { id: 'pork', name: 'Pork Siomai', note: 'per piece', price: 11 },
+  { id: 'chicken', name: 'Chicken Siomai', note: 'per piece', price: 11 },
+  { id: 'japanese', name: 'Japanese Siomai', note: 'per piece', price: 13 },
+  { id: 'rice', name: 'Plain Rice', note: 'per order', price: 15 },
+];
+
+const qty = {};
+MENU.forEach(m => qty[m.id] = 0);
+
+let mode = 'delivery';
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnDelivery').classList.toggle('active', m === 'delivery');
+  document.getElementById('btnPickup').classList.toggle('active', m === 'pickup');
+  document.getElementById('addressField').style.display = m === 'delivery' ? '' : 'none';
+}
+
+function renderItems() {
+  const list = document.getElementById('itemsList');
+  list.innerHTML = '';
+  MENU.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'menu-item-card';
+    card.innerHTML = `
+      <div class="info">
+        <div class="name">${item.name}</div>
+        <div class="price">₱${item.price} ${item.note}</div>
+      </div>
+      <div class="qty-control">
+        <button class="qty-btn" onclick="changeQty('${item.id}',-1)">−</button>
+        <span class="qty-num" id="qty_${item.id}">0</span>
+        <button class="qty-btn" onclick="changeQty('${item.id}',1)">+</button>
+      </div>`;
+    list.appendChild(card);
+  });
+  updateSummary();
+}
+
+function changeQty(id, delta) {
+  qty[id] = Math.max(0, qty[id] + delta);
+  document.getElementById('qty_' + id).textContent = qty[id];
+  updateSummary();
+}
+
+function updateSummary() {
+  const box = document.getElementById('summaryBox');
+  const lines = MENU.filter(m => qty[m.id] > 0);
+  if (!lines.length) {
+    box.innerHTML = '<div class="summary-row" style="color:#7a6040;font-style:italic;">Walang napili pa.</div>';
+    return;
+  }
+  let total = 0;
+  let html = '';
+  lines.forEach(m => {
+    const sub = m.price * qty[m.id];
+    total += sub;
+    html += `<div class="summary-row"><span>${m.name} × ${qty[m.id]}</span><span>₱${sub}</span></div>`;
+  });
+  html += `<div class="summary-row total"><span>Total</span><span>₱${total}</span></div>`;
+  box.innerHTML = html;
+}
+
+function submitOrder() {
+  let valid = true;
+
+  const name = document.getElementById('custName').value.trim();
+  document.getElementById('errName').style.display = name ? 'none' : 'block';
+  if (!name) valid = false;
+
+  if (mode === 'delivery') {
+    const addr = document.getElementById('custAddress').value.trim();
+    document.getElementById('errAddress').style.display = addr ? 'none' : 'block';
+    if (!addr) valid = false;
+  }
+
+  const hasItems = MENU.some(m => qty[m.id] > 0);
+  document.getElementById('errItems').style.display = hasItems ? 'none' : 'block';
+  if (!hasItems) valid = false;
+
+  if (!valid) return;
+
+  const items = MENU.filter(m => qty[m.id] > 0).map(m => ({
+    id: m.id,
+    name: m.name,
+    price: m.price,
+    qty: qty[m.id],
+    subtotal: m.price * qty[m.id]
+  }));
+
+  const total = items.reduce((s, i) => s + i.subtotal, 0);
+
+  const order = {
+    name,
+    contact: document.getElementById('custContact').value.trim(),
+    mode,
+    address: mode === 'delivery' ? document.getElementById('custAddress').value.trim() : 'Pickup',
+    note: document.getElementById('custNote').value.trim(),
+    items,
+    total
+  };
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Nagpapadala ng order...';
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'create', order })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+
+      document.getElementById('successName').textContent = `Hi, ${name}!`;
+      document.getElementById('successMode').textContent = mode === 'delivery' ? '🛵 Para sa delivery — abangan mo na!' : '🏃 Pickup — ready na kami para sa iyo!';
+      document.getElementById('successTotal').textContent = `Total: ₱${total}`;
+
+      document.getElementById('orderForm').style.display = 'none';
+      document.getElementById('successScreen').style.display = 'block';
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Sorry, hindi na-send ang order. Subukan ulit o i-check ang internet connection.');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    });
+}
+
+function resetForm() {
+  MENU.forEach(m => qty[m.id] = 0);
+  document.getElementById('custName').value = '';
+  document.getElementById('custContact').value = '';
+  document.getElementById('custAddress').value = '';
+  document.getElementById('custNote').value = '';
+  setMode('delivery');
+  renderItems();
+  document.getElementById('orderForm').style.display = '';
+  document.getElementById('successScreen').style.display = 'none';
+}
+
+renderItems();
+</script>
+</body>
+</html>
