@@ -1,4 +1,4 @@
-<!-- Last updated: 2026-07-23 | TP | Change: upgraded typography to Playfair Display + Inter (was Georgia/Helvetica) for a simpler, more premium look -->
+<!-- Last updated: 2026-07-23 | TP | Change: added lightweight customer accounts (contact number + 4-digit PIN, no password needed) and a "My Orders" tab so customers can look up their order status/history by contact + PIN. -->
 <!DOCTYPE html>
 <html lang="fil">
 <head>
@@ -275,6 +275,110 @@
   }
   .note-input:focus { border-color: #C9A24B; }
   .note-input::placeholder { color: #7a6040; }
+
+  .top-tabs {
+    display: flex;
+    gap: 8px;
+    max-width: 480px;
+    margin: 16px auto 0;
+    padding: 0 16px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #5C4326;
+    background: #2B1610;
+    color: #B79A6E;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .tab-btn.active {
+    background: #C9A24B;
+    border-color: #C9A24B;
+    color: #2B1610;
+    font-weight: bold;
+  }
+
+  .my-order-card {
+    background: #2B1610;
+    border: 1px solid #5C4326;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .my-order-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    gap: 10px;
+  }
+
+  .my-order-id {
+    font-size: 11px;
+    color: #7a6040;
+    letter-spacing: 1px;
+  }
+
+  .my-order-date {
+    font-size: 12px;
+    color: #B79A6E;
+    margin-top: 3px;
+  }
+
+  .my-order-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .badge-Pending    { background: rgba(231,200,119,0.15); color: #E7C877; }
+  .badge-Preparing  { background: rgba(91,164,224,0.15); color: #5BA4E0; }
+  .badge-Ready      { background: rgba(91,207,138,0.15); color: #5BCF8A; }
+  .badge-Delivered  { background: rgba(138,138,138,0.15); color: #aaa; }
+  .badge-Cancelled  { background: rgba(224,96,96,0.15); color: #e06060; }
+
+  .my-order-items {
+    border-top: 1px solid #3A2015;
+    padding: 10px 16px;
+  }
+
+  .my-order-item-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 13px;
+    padding: 3px 0;
+    color: #c4a87a;
+  }
+
+  .my-order-footer {
+    border-top: 1px solid #3A2015;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 13px;
+    color: #B79A6E;
+  }
+
+  .my-order-total {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 16px;
+    font-weight: bold;
+    color: #C9A24B;
+  }
 </style>
 </head>
 <body>
@@ -283,6 +387,11 @@
   <h1>Siomai D'</h1>
   <p>Meaning of being hungry</p>
 </header>
+
+<div class="top-tabs">
+  <div class="tab-btn active" id="tabOrder" onclick="switchTab('order')">🍱 Mag-order</div>
+  <div class="tab-btn" id="tabHistory" onclick="switchTab('history')">📋 My Orders</div>
+</div>
 
 <div class="container" id="orderForm">
 
@@ -294,7 +403,14 @@
 
   <div style="height:10px"></div>
   <div class="field">
-    <input type="text" id="custContact" placeholder="Contact number (optional)" maxlength="20">
+    <input type="text" id="custContact" placeholder="Contact number" maxlength="20">
+    <div class="error-msg" id="errContact">Pakiusap ilagay ang contact number mo.</div>
+  </div>
+
+  <div style="height:10px"></div>
+  <div class="field">
+    <input type="text" id="custPin" placeholder="4-digit PIN (gawa mo, para sa pag-check ng order mo)" maxlength="4" inputmode="numeric">
+    <div class="error-msg" id="errPin">Kailangan ng 4-digit na PIN.</div>
   </div>
 
   <div class="section-label">Delivery or Pickup?</div>
@@ -333,6 +449,20 @@
   <p id="successMode"></p>
   <p style="margin-top:12px; color:#C9A24B; font-size:16px;" id="successTotal"></p>
   <button class="order-again-btn" onclick="resetForm()">Place Another Order</button>
+</div>
+
+<div class="container" id="myOrdersView" style="display:none;">
+  <div class="section-label" style="margin-top:0;">Tignan ang Order Mo</div>
+  <div class="field">
+    <input type="text" id="lookupContact" placeholder="Contact number" maxlength="20">
+  </div>
+  <div style="height:10px"></div>
+  <div class="field">
+    <input type="text" id="lookupPin" placeholder="4-digit PIN" maxlength="4" inputmode="numeric">
+  </div>
+  <div class="error-msg" id="lookupError" style="display:none; margin-top:6px;"></div>
+  <button class="submit-btn" onclick="lookupMyOrders()" id="lookupBtn">Tignan ang Orders</button>
+  <div id="myOrdersList" style="margin-top:20px; display:flex; flex-direction:column; gap:12px;"></div>
 </div>
 
 <script>
@@ -409,6 +539,15 @@ function submitOrder() {
   document.getElementById('errName').style.display = name ? 'none' : 'block';
   if (!name) valid = false;
 
+  const contact = document.getElementById('custContact').value.trim();
+  document.getElementById('errContact').style.display = contact ? 'none' : 'block';
+  if (!contact) valid = false;
+
+  const pin = document.getElementById('custPin').value.trim();
+  const pinValid = /^\d{4}$/.test(pin);
+  document.getElementById('errPin').style.display = pinValid ? 'none' : 'block';
+  if (!pinValid) valid = false;
+
   if (mode === 'delivery') {
     const addr = document.getElementById('custAddress').value.trim();
     document.getElementById('errAddress').style.display = addr ? 'none' : 'block';
@@ -434,6 +573,7 @@ function submitOrder() {
   const order = {
     name,
     contact: document.getElementById('custContact').value.trim(),
+    pin: document.getElementById('custPin').value.trim(),
     mode,
     address: mode === 'delivery' ? document.getElementById('custAddress').value.trim() : 'Pickup',
     note: document.getElementById('custNote').value.trim(),
@@ -476,12 +616,103 @@ function resetForm() {
   MENU.forEach(m => qty[m.id] = 0);
   document.getElementById('custName').value = '';
   document.getElementById('custContact').value = '';
+  document.getElementById('custPin').value = '';
   document.getElementById('custAddress').value = '';
   document.getElementById('custNote').value = '';
   setMode('delivery');
   renderItems();
   document.getElementById('orderForm').style.display = '';
   document.getElementById('successScreen').style.display = 'none';
+}
+
+function switchTab(tab) {
+  document.getElementById('tabOrder').classList.toggle('active', tab === 'order');
+  document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+
+  const showOrder = tab === 'order';
+  document.getElementById('orderForm').style.display = showOrder ? '' : 'none';
+  document.getElementById('successScreen').style.display = 'none';
+  document.getElementById('myOrdersView').style.display = showOrder ? 'none' : '';
+}
+
+function formatOrderDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fil-PH', { month:'short', day:'numeric' })
+    + ' ' + d.toLocaleTimeString('fil-PH', { hour:'2-digit', minute:'2-digit' });
+}
+
+function lookupMyOrders() {
+  const contact = document.getElementById('lookupContact').value.trim();
+  const pin = document.getElementById('lookupPin').value.trim();
+  const errEl = document.getElementById('lookupError');
+  const listEl = document.getElementById('myOrdersList');
+  const btn = document.getElementById('lookupBtn');
+
+  errEl.style.display = 'none';
+  listEl.innerHTML = '';
+
+  if (!contact || !/^\d{4}$/.test(pin)) {
+    errEl.textContent = 'Ilagay ang contact number at 4-digit PIN mo.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Naghahanap...';
+  listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:16px 0;">Naghahanap...</div>';
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'myOrders', contact, pin })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      renderMyOrders(data.orders);
+    })
+    .catch(err => {
+      listEl.innerHTML = '';
+      errEl.textContent = err.message || 'Hindi ma-load. Subukan ulit.';
+      errEl.style.display = 'block';
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    });
+}
+
+function renderMyOrders(orders) {
+  const listEl = document.getElementById('myOrdersList');
+  if (!orders.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:20px 0;">Wala pang orders sa number na ito.</div>';
+    return;
+  }
+  listEl.innerHTML = '';
+  orders.forEach(o => {
+    const card = document.createElement('div');
+    card.className = 'my-order-card';
+    const itemsHtml = o.items.map(i =>
+      `<div class="my-order-item-row"><span>${i.name} × ${i.qty}</span><span>₱${i.subtotal}</span></div>`
+    ).join('');
+    const modeLabel = o.mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
+
+    card.innerHTML = `
+      <div class="my-order-header">
+        <div>
+          <div class="my-order-id">${o.id}</div>
+          <div class="my-order-date">${formatOrderDate(o.date)}</div>
+        </div>
+        <span class="my-order-badge badge-${o.status}">${o.status}</span>
+      </div>
+      <div class="my-order-items">${itemsHtml}</div>
+      <div class="my-order-footer">
+        <span>${modeLabel}</span>
+        <span class="my-order-total">₱${o.total}</span>
+      </div>`;
+    listEl.appendChild(card);
+  });
 }
 
 renderItems();
