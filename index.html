@@ -398,19 +398,19 @@
   <div class="section-label">Your Info</div>
   <div class="field">
     <input type="text" id="custName" placeholder="Your name" maxlength="60">
-    <div class="error-msg" id="errName">Pakiusap ilagay ang pangalan mo.</div>
+    <div class="error-msg" id="errName">Please enter your name.</div>
   </div>
 
   <div style="height:10px"></div>
   <div class="field">
     <input type="text" id="custContact" placeholder="Contact number" maxlength="20">
-    <div class="error-msg" id="errContact">Pakiusap ilagay ang contact number mo.</div>
+    <div class="error-msg" id="errContact">Please enter your contact number.</div>
   </div>
 
   <div style="height:10px"></div>
   <div class="field">
-    <input type="text" id="custPin" placeholder="4-digit PIN (gawa mo, para sa pag-check ng order mo)" maxlength="4" inputmode="numeric">
-    <div class="error-msg" id="errPin">Kailangan ng 4-digit na PIN.</div>
+    <input type="text" id="custPin" placeholder="Create 4-Digit PIN — To Access Order & History" maxlength="4" inputmode="numeric">
+    <div class="error-msg" id="errPin">A 4-digit PIN is required.</div>
   </div>
 
   <div class="section-label">Delivery or Pickup?</div>
@@ -422,20 +422,31 @@
   <div id="addressField" style="margin-top:10px;">
     <div class="field">
       <input type="text" id="custAddress" placeholder="Delivery address" maxlength="120">
-      <div class="error-msg" id="errAddress">Pakiusap ilagay ang address para sa delivery.</div>
+      <div class="error-msg" id="errAddress">Please enter your delivery address.</div>
     </div>
   </div>
 
+  <div id="deliveryNote" style="display:none; margin-top:10px; font-size:12.5px; color:#B79A6E; background:#3A2015; border:1px solid #5C4326; border-radius:6px; padding:10px 12px; line-height:1.5;">
+    ℹ️ This is not a rush order — please allow time for your delivery update.
+  </div>
+
+  <div class="section-label">Choose Your Date & Time</div>
+  <div class="field" style="display:flex; gap:10px;">
+    <select id="schedDate" onchange="onScheduleChange()" style="flex:1;"></select>
+    <select id="schedTime" onchange="onScheduleChange()" style="flex:1;"></select>
+  </div>
+  <div class="error-msg" id="errSchedule">Please select a valid time — 12:00 PM to 9:00 PM, at least 30 minutes from now.</div>
+
   <div class="section-label">Your Order</div>
   <div class="items-list" id="itemsList"></div>
-  <div class="error-msg" id="errItems" style="display:none; margin-top:6px;">Pumili ng hindi bababa sa isang item.</div>
+  <div class="error-msg" id="errItems" style="display:none; margin-top:6px;">Please select at least one item.</div>
 
   <div class="section-label">Notes (optional)</div>
   <textarea class="note-input" id="custNote" placeholder="e.g. extra sauce, less spicy…"></textarea>
 
   <div class="section-label">Order Summary</div>
   <div class="order-summary" id="summaryBox">
-    <div class="summary-row" style="color:#7a6040; font-style:italic;">Walang napili pa.</div>
+    <div class="summary-row" style="color:#7a6040; font-style:italic;">No items selected yet.</div>
   </div>
 
   <button class="submit-btn" id="submitBtn" onclick="submitOrder()">Place Order</button>
@@ -452,7 +463,7 @@
 </div>
 
 <div class="container" id="myOrdersView" style="display:none;">
-  <div class="section-label" style="margin-top:0;">Tignan ang Order Mo</div>
+  <div class="section-label" style="margin-top:0;">View Your Order</div>
   <div class="field">
     <input type="text" id="lookupContact" placeholder="Contact number" maxlength="20">
   </div>
@@ -461,7 +472,7 @@
     <input type="text" id="lookupPin" placeholder="4-digit PIN" maxlength="4" inputmode="numeric">
   </div>
   <div class="error-msg" id="lookupError" style="display:none; margin-top:6px;"></div>
-  <button class="submit-btn" onclick="lookupMyOrders()" id="lookupBtn">Tignan ang Orders</button>
+  <button class="submit-btn" onclick="lookupMyOrders()" id="lookupBtn">View Orders</button>
   <div id="myOrdersList" style="margin-top:20px; display:flex; flex-direction:column; gap:12px;"></div>
 </div>
 
@@ -480,11 +491,135 @@ MENU.forEach(m => qty[m.id] = 0);
 
 let mode = 'delivery';
 
+// Business rules for scheduled pickup/delivery time
+const BUSINESS_OPEN_MIN = 12 * 60;   // 12:00 PM
+const BUSINESS_CLOSE_MIN = 21 * 60;  // 9:00 PM
+const LEAD_TIME_MIN = 30;            // minimum 30 mins from now
+const SLOT_STEP_MIN = 30;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function minutesToLabel(mins) {
+  let h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${h}:${pad2(m)} ${ampm}`;
+}
+
+function minutesTo24h(mins) {
+  return `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}`;
+}
+
+function dateLabel(d) {
+  return d.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// Returns list of valid slot-start minutes (multiples of SLOT_STEP_MIN within business hours)
+// for "today", respecting the 30-min lead time from right now.
+function todaySlots() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const earliest = nowMin + LEAD_TIME_MIN;
+  let start = Math.max(BUSINESS_OPEN_MIN, Math.ceil(earliest / SLOT_STEP_MIN) * SLOT_STEP_MIN);
+  const slots = [];
+  for (let t = start; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
+  return slots;
+}
+
+function fullDaySlots() {
+  const slots = [];
+  for (let t = BUSINESS_OPEN_MIN; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
+  return slots;
+}
+
+function initSchedule() {
+  const dateSel = document.getElementById('schedDate');
+  dateSel.innerHTML = '';
+
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  const todaySlotList = todaySlots();
+
+  if (todaySlotList.length > 0) {
+    const opt = document.createElement('option');
+    opt.value = 'today';
+    opt.textContent = `Today — ${dateLabel(today)}`;
+    dateSel.appendChild(opt);
+  }
+
+  const optTomorrow = document.createElement('option');
+  optTomorrow.value = 'tomorrow';
+  optTomorrow.textContent = `Tomorrow — ${dateLabel(tomorrow)}`;
+  dateSel.appendChild(optTomorrow);
+
+  // If no slots left today, default straight to tomorrow (advance order)
+  dateSel.value = todaySlotList.length > 0 ? 'today' : 'tomorrow';
+
+  populateTimeSlots();
+}
+
+function populateTimeSlots() {
+  const dateSel = document.getElementById('schedDate');
+  const timeSel = document.getElementById('schedTime');
+  const isToday = dateSel.value === 'today';
+  const slots = isToday ? todaySlots() : fullDaySlots();
+
+  timeSel.innerHTML = '';
+  slots.forEach(mins => {
+    const opt = document.createElement('option');
+    opt.value = String(mins);
+    opt.textContent = minutesToLabel(mins);
+    timeSel.appendChild(opt);
+  });
+}
+
+function onScheduleChange() {
+  populateTimeSlots();
+  document.getElementById('errSchedule').style.display = 'none';
+}
+
+// Returns { ok, dateKey, dateLabel, timeLabel, time24h } for the currently selected schedule,
+// or { ok:false } if the selection has gone stale (e.g. "Today" but time already passed while form was open).
+function getScheduleSelection() {
+  const dateSel = document.getElementById('schedDate');
+  const timeSel = document.getElementById('schedTime');
+  const isToday = dateSel.value === 'today';
+  const mins = parseInt(timeSel.value, 10);
+
+  if (isNaN(mins) || mins < BUSINESS_OPEN_MIN || mins > BUSINESS_CLOSE_MIN) return { ok: false };
+
+  if (isToday) {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    if (mins < nowMin + LEAD_TIME_MIN) return { ok: false };
+  }
+
+  const d = new Date();
+  if (!isToday) d.setDate(d.getDate() + 1);
+
+  return {
+    ok: true,
+    dateKey: dateKey(d),
+    dateLabel: (isToday ? 'Today' : 'Tomorrow') + ' — ' + dateLabel(d),
+    timeLabel: minutesToLabel(mins),
+    time24h: minutesTo24h(mins)
+  };
+}
+
 function setMode(m) {
   mode = m;
   document.getElementById('btnDelivery').classList.toggle('active', m === 'delivery');
   document.getElementById('btnPickup').classList.toggle('active', m === 'pickup');
   document.getElementById('addressField').style.display = m === 'delivery' ? '' : 'none';
+  document.getElementById('deliveryNote').style.display = m === 'delivery' ? '' : 'none';
 }
 
 function renderItems() {
@@ -518,7 +653,7 @@ function updateSummary() {
   const box = document.getElementById('summaryBox');
   const lines = MENU.filter(m => qty[m.id] > 0);
   if (!lines.length) {
-    box.innerHTML = '<div class="summary-row" style="color:#7a6040;font-style:italic;">Walang napili pa.</div>';
+    box.innerHTML = '<div class="summary-row" style="color:#7a6040;font-style:italic;">No items selected yet.</div>';
     return;
   }
   let total = 0;
@@ -558,6 +693,14 @@ function submitOrder() {
   document.getElementById('errItems').style.display = hasItems ? 'none' : 'block';
   if (!hasItems) valid = false;
 
+  const schedule = getScheduleSelection();
+  document.getElementById('errSchedule').style.display = schedule.ok ? 'none' : 'block';
+  if (!schedule.ok) {
+    // Selection went stale (e.g. lead time passed while form was open) - refresh options
+    initSchedule();
+    valid = false;
+  }
+
   if (!valid) return;
 
   const items = MENU.filter(m => qty[m.id] > 0).map(m => ({
@@ -577,6 +720,9 @@ function submitOrder() {
     mode,
     address: mode === 'delivery' ? document.getElementById('custAddress').value.trim() : 'Pickup',
     note: document.getElementById('custNote').value.trim(),
+    scheduleDate: schedule.dateKey,
+    scheduleTime: schedule.time24h,
+    scheduleLabel: `${schedule.dateLabel}, ${schedule.timeLabel}`,
     items,
     total
   };
@@ -584,7 +730,7 @@ function submitOrder() {
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
   const originalLabel = btn.textContent;
-  btn.textContent = 'Nagpapadala ng order...';
+  btn.textContent = 'Sending order...';
 
   fetch(SCRIPT_URL, {
     method: 'POST',
@@ -596,7 +742,8 @@ function submitOrder() {
       if (!data.ok) throw new Error(data.error || 'Unknown error');
 
       document.getElementById('successName').textContent = `Hi, ${name}!`;
-      document.getElementById('successMode').textContent = mode === 'delivery' ? '🛵 Para sa delivery — abangan mo na!' : '🏃 Pickup — ready na kami para sa iyo!';
+      const modeText = mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
+      document.getElementById('successMode').textContent = `${modeText} — ${schedule.dateLabel}, ${schedule.timeLabel}`;
       document.getElementById('successTotal').textContent = `Total: ₱${total}`;
 
       document.getElementById('orderForm').style.display = 'none';
@@ -604,7 +751,7 @@ function submitOrder() {
     })
     .catch(err => {
       console.error(err);
-      alert('Sorry, hindi na-send ang order. Subukan ulit o i-check ang internet connection.');
+      alert('Sorry, your order could not be sent. Please try again or check your internet connection.');
     })
     .finally(() => {
       btn.disabled = false;
@@ -620,6 +767,7 @@ function resetForm() {
   document.getElementById('custAddress').value = '';
   document.getElementById('custNote').value = '';
   setMode('delivery');
+  initSchedule();
   renderItems();
   document.getElementById('orderForm').style.display = '';
   document.getElementById('successScreen').style.display = 'none';
@@ -637,8 +785,8 @@ function switchTab(tab) {
 
 function formatOrderDate(iso) {
   const d = new Date(iso);
-  return d.toLocaleDateString('fil-PH', { month:'short', day:'numeric' })
-    + ' ' + d.toLocaleTimeString('fil-PH', { hour:'2-digit', minute:'2-digit' });
+  return d.toLocaleDateString('en-PH', { month:'short', day:'numeric' })
+    + ' ' + d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
 }
 
 function lookupMyOrders() {
@@ -652,15 +800,15 @@ function lookupMyOrders() {
   listEl.innerHTML = '';
 
   if (!contact || !/^\d{4}$/.test(pin)) {
-    errEl.textContent = 'Ilagay ang contact number at 4-digit PIN mo.';
+    errEl.textContent = 'Please enter your contact number and 4-digit PIN.';
     errEl.style.display = 'block';
     return;
   }
 
   btn.disabled = true;
   const originalLabel = btn.textContent;
-  btn.textContent = 'Naghahanap...';
-  listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:16px 0;">Naghahanap...</div>';
+  btn.textContent = 'Searching...';
+  listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:16px 0;">Searching...</div>';
 
   fetch(SCRIPT_URL, {
     method: 'POST',
@@ -674,7 +822,7 @@ function lookupMyOrders() {
     })
     .catch(err => {
       listEl.innerHTML = '';
-      errEl.textContent = err.message || 'Hindi ma-load. Subukan ulit.';
+      errEl.textContent = err.message || 'Unable to load. Please try again.';
       errEl.style.display = 'block';
     })
     .finally(() => {
@@ -686,7 +834,7 @@ function lookupMyOrders() {
 function renderMyOrders(orders) {
   const listEl = document.getElementById('myOrdersList');
   if (!orders.length) {
-    listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:20px 0;">Wala pang orders sa number na ito.</div>';
+    listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:20px 0;">No orders found for this number.</div>';
     return;
   }
   listEl.innerHTML = '';
@@ -697,12 +845,16 @@ function renderMyOrders(orders) {
       `<div class="my-order-item-row"><span>${i.name} × ${i.qty}</span><span>₱${i.subtotal}</span></div>`
     ).join('');
     const modeLabel = o.mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
+    const scheduleHtml = o.scheduleLabel
+      ? `<div class="my-order-date" style="margin-top:2px;">⏰ ${o.scheduleLabel}</div>`
+      : '';
 
     card.innerHTML = `
       <div class="my-order-header">
         <div>
           <div class="my-order-id">${o.id}</div>
           <div class="my-order-date">${formatOrderDate(o.date)}</div>
+          ${scheduleHtml}
         </div>
         <span class="my-order-badge badge-${o.status}">${o.status}</span>
       </div>
@@ -716,6 +868,7 @@ function renderMyOrders(orders) {
 }
 
 renderItems();
+initSchedule();
 </script>
 </body>
 </html>
