@@ -1,4 +1,4 @@
-<!-- Last updated: 2026-07-23 | TP | Change: added Admin/Staff login system (Users tab in sheet), Staff role hides sales figures, all actions logged to ActivityLog tab. Added "Change Password" modal so logged-in users can update their own password. -->
+<!-- Last updated: 2026-07-23 | TP | Change: added Admin/Staff login system (Users tab in sheet), Staff role hides sales figures, all actions logged to ActivityLog tab. Added "Change Password" modal (self-service, needs current password) and "Accounts" panel with Admin-only "Reset Password" per account (no need to know the old password; passwords are hashed and never shown). -->
 <!DOCTYPE html>
 <html lang="fil">
 <head>
@@ -397,6 +397,20 @@
     cursor: pointer;
   }
   .modal-cancel-btn:hover { border-color: #C9A24B; color: #C9A24B; }
+
+  .account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #3A2015;
+    border: 1px solid #5C4326;
+    border-radius: 8px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .account-row .info { font-family: 'Inter', Helvetica, sans-serif; }
+  .account-row .info .uname { color: #F3E7C9; font-size: 14px; font-weight: bold; }
+  .account-row .info .role { color: #B79A6E; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 </style>
 </head>
 <body>
@@ -428,10 +442,39 @@
     <span id="userTag" style="font-size:12px; color:#B79A6E;"></span>
     <span id="syncStatus" style="font-size:11px; color:#7a6040;"></span>
     <button class="refresh-btn" id="refreshBtn" onclick="loadOrders()">🔄 Refresh</button>
+    <button class="refresh-btn" id="accountsBtn" onclick="openAccountsModal()">👥 Accounts</button>
     <button class="refresh-btn" onclick="openChangePasswordModal()">🔑 Change Password</button>
     <button class="refresh-btn" onclick="logout()">Log Out</button>
   </div>
 </header>
+
+<div class="modal-overlay" id="accountsModal">
+  <div class="modal-card" style="max-width:380px;">
+    <h3>Accounts</h3>
+    <div id="accountsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel-btn" onclick="closeAccountsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetPasswordModal">
+  <div class="modal-card">
+    <h3 id="rpTitle">Reset Password</h3>
+    <div class="field">
+      <input type="password" id="rpNewPassword" placeholder="New password" autocomplete="new-password">
+    </div>
+    <div class="field">
+      <input type="password" id="rpConfirmPassword" placeholder="Confirm new password" autocomplete="new-password">
+    </div>
+    <div class="modal-error" id="rpError"></div>
+    <div class="modal-success" id="rpSuccess"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel-btn" onclick="closeResetPasswordModal()">Cancel</button>
+      <button class="refresh-btn" id="rpSubmitBtn" onclick="submitResetPassword()">Save</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="changePasswordModal">
   <div class="modal-card">
@@ -542,6 +585,7 @@ function enterDashboard() {
   const isStaff = currentUser.role === 'Staff';
   document.getElementById('statSalesCard').style.display = isStaff ? 'none' : '';
   document.getElementById('statAvgCard').style.display = isStaff ? 'none' : '';
+  document.getElementById('accountsBtn').style.display = isStaff ? 'none' : '';
 
   loadOrders();
 }
@@ -811,6 +855,120 @@ function submitChangePassword() {
       errEl.textContent = err.message === 'Current password is incorrect'
         ? 'Mali ang current password.'
         : (err.message || 'Hindi na-save. Subukan ulit.');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Save';
+    });
+}
+
+let resetTargetUsername = null;
+
+function openAccountsModal() {
+  document.getElementById('accountsModal').style.display = 'flex';
+  loadAccounts();
+}
+
+function closeAccountsModal() {
+  document.getElementById('accountsModal').style.display = 'none';
+}
+
+function loadAccounts() {
+  const list = document.getElementById('accountsList');
+  list.innerHTML = '<div style="color:#7a6040;font-size:13px;text-align:center;">Loading...</div>';
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'listAccounts', username: currentUser.username })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      renderAccounts(data.accounts);
+    })
+    .catch(err => {
+      list.innerHTML = '<div style="color:#e06060;font-size:13px;text-align:center;">' + (err.message || 'Hindi ma-load.') + '</div>';
+    });
+}
+
+function renderAccounts(accounts) {
+  const list = document.getElementById('accountsList');
+  if (!accounts.length) {
+    list.innerHTML = '<div style="color:#7a6040;font-size:13px;text-align:center;">Walang accounts.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  accounts.forEach(acc => {
+    const row = document.createElement('div');
+    row.className = 'account-row';
+    row.innerHTML = `
+      <div class="info">
+        <div class="uname">${acc.username}</div>
+        <div class="role">${acc.role}</div>
+      </div>
+      <button class="refresh-btn" onclick="openResetPasswordModal('${acc.username}')">Reset Password</button>`;
+    list.appendChild(row);
+  });
+}
+
+function openResetPasswordModal(username) {
+  resetTargetUsername = username;
+  document.getElementById('rpTitle').textContent = 'Reset Password — ' + username;
+  document.getElementById('rpNewPassword').value = '';
+  document.getElementById('rpConfirmPassword').value = '';
+  document.getElementById('rpError').textContent = '';
+  document.getElementById('rpSuccess').textContent = '';
+  document.getElementById('resetPasswordModal').style.display = 'flex';
+}
+
+function closeResetPasswordModal() {
+  document.getElementById('resetPasswordModal').style.display = 'none';
+}
+
+function submitResetPassword() {
+  const newPassword = document.getElementById('rpNewPassword').value;
+  const confirmPassword = document.getElementById('rpConfirmPassword').value;
+  const errEl = document.getElementById('rpError');
+  const okEl = document.getElementById('rpSuccess');
+  const btn = document.getElementById('rpSubmitBtn');
+
+  errEl.textContent = '';
+  okEl.textContent = '';
+
+  if (!newPassword || !confirmPassword) {
+    errEl.textContent = 'Punan ang lahat ng fields.';
+    return;
+  }
+  if (newPassword.length < 6) {
+    errEl.textContent = 'Dapat hindi bababa sa 6 characters ang bagong password.';
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    errEl.textContent = 'Hindi magkatugma ang password at confirm.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sinesave...';
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'resetPassword',
+      username: currentUser.username,
+      targetUsername: resetTargetUsername,
+      newPassword
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      okEl.textContent = 'Na-reset na ang password ni ' + resetTargetUsername + '.';
+    })
+    .catch(err => {
+      errEl.textContent = err.message || 'Hindi na-save. Subukan ulit.';
     })
     .finally(() => {
       btn.disabled = false;
