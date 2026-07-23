@@ -1,4 +1,4 @@
-<!-- Last updated: 2026-07-23 | TP | Change: added lightweight customer accounts (contact number + 4-digit PIN, no password needed) and a "My Orders" tab so customers can look up their order status/history by contact + PIN. -->
+<!-- Last updated: 2026-07-23 | TP | Change: order dates now default to Monday–Wednesday only (advance orders up to 14 days ahead, Thu–Sun closed by default). Added an admin panel (index.html?admin=1) to force specific dates open or closed, overriding the default. Requires backend support for 'getScheduleOverrides' and 'setScheduleOverride' actions — see accompanying Apps Script notes. -->
 <!DOCTYPE html>
 <html lang="fil">
 <head>
@@ -104,6 +104,38 @@
     color: #2B1610;
     font-weight: bold;
   }
+
+  .admin-day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #5C4326;
+    border-radius: 6px;
+    background: #3A2015;
+    margin-bottom: 8px;
+  }
+
+  .admin-day-info { display: flex; flex-direction: column; }
+  .admin-day-name { font-size: 14px; color: #F3E7C9; font-weight: 600; }
+  .admin-day-date { font-size: 11.5px; color: #B79A6E; margin-top: 1px; }
+
+  .admin-status-btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid #5C4326;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-weight: 600;
+    min-width: 92px;
+    text-align: center;
+  }
+
+  .admin-status-btn.status-open { background: #2f5233; border-color: #4a8f52; color: #b7e6bd; }
+  .admin-status-btn.status-closed { background: #5a2323; border-color: #8f4a4a; color: #e6b7b7; }
+  .admin-status-btn.status-default { background: #3A2015; border-color: #5C4326; color: #B79A6E; }
 
   .items-list {
     display: flex;
@@ -476,8 +508,19 @@
   <div id="myOrdersList" style="margin-top:20px; display:flex; flex-direction:column; gap:12px;"></div>
 </div>
 
+<div class="container" id="adminView" style="display:none;">
+  <div class="section-label" style="margin-top:0;">Manage Open / Closed Dates</div>
+  <p style="font-size:12.5px; color:#B79A6E; margin-bottom:14px; line-height:1.5;">
+    Default: open Mon–Wed, closed Thu–Sun. Tap a date to override it. Tap again to cycle: Default → Open → Closed.
+  </p>
+  <div id="adminScheduleList"></div>
+</div>
+
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzB2IajsTUZ6-bWDQjJbu9KLyZ1KrGIj09O7pD7xmYqPFSBj_QhQ092J7thBTocSuo2/exec';
+
+// Change this to your own passcode. Access the panel via index.html?admin=1
+const ADMIN_KEY = 'siomai2026';
 
 const MENU = [
   { id: 'pork', name: 'Pork Siomai', note: 'per piece', price: 11 },
@@ -496,6 +539,22 @@ const BUSINESS_OPEN_MIN = 12 * 60;   // 12:00 PM
 const BUSINESS_CLOSE_MIN = 21 * 60;  // 9:00 PM
 const LEAD_TIME_MIN = 30;            // minimum 30 mins from now
 const SLOT_STEP_MIN = 30;
+
+// Which days are open by default (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat)
+// Default: Monday–Wednesday only. Admin can override specific dates via the admin panel.
+const OPEN_WEEKDAYS = [1, 2, 3];
+const SCHEDULE_LOOKAHEAD_DAYS = 14; // how many days ahead the date picker shows
+
+// Filled in from the backend on page load: { 'YYYY-MM-DD': 'open' | 'closed' }
+let scheduleOverrides = {};
+
+// Whether a given date is open for ordering, taking admin overrides into account.
+function isDateOpen(d) {
+  const key = dateKey(d);
+  if (scheduleOverrides[key] === 'open') return true;
+  if (scheduleOverrides[key] === 'closed') return false;
+  return OPEN_WEEKDAYS.includes(d.getDay());
+}
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 
@@ -538,30 +597,35 @@ function fullDaySlots() {
   return slots;
 }
 
+function scheduleDateLabel(offset, d) {
+  if (offset === 0) return `Today — ${dateLabel(d)}`;
+  if (offset === 1) return `Tomorrow — ${dateLabel(d)}`;
+  return dateLabel(d);
+}
+
 function initSchedule() {
   const dateSel = document.getElementById('schedDate');
   dateSel.innerHTML = '';
 
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(today.getDate() + 1);
+  for (let offset = 0; offset <= SCHEDULE_LOOKAHEAD_DAYS; offset++) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
 
-  const todaySlotList = todaySlots();
+    if (!isDateOpen(d)) continue;
+    if (offset === 0 && todaySlots().length === 0) continue; // no slots left today
 
-  if (todaySlotList.length > 0) {
     const opt = document.createElement('option');
-    opt.value = 'today';
-    opt.textContent = `Today — ${dateLabel(today)}`;
+    opt.value = String(offset);
+    opt.textContent = scheduleDateLabel(offset, d);
     dateSel.appendChild(opt);
   }
 
-  const optTomorrow = document.createElement('option');
-  optTomorrow.value = 'tomorrow';
-  optTomorrow.textContent = `Tomorrow — ${dateLabel(tomorrow)}`;
-  dateSel.appendChild(optTomorrow);
-
-  // If no slots left today, default straight to tomorrow (advance order)
-  dateSel.value = todaySlotList.length > 0 ? 'today' : 'tomorrow';
+  if (!dateSel.options.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No available dates — please check back later';
+    dateSel.appendChild(opt);
+  }
 
   populateTimeSlots();
 }
@@ -569,10 +633,12 @@ function initSchedule() {
 function populateTimeSlots() {
   const dateSel = document.getElementById('schedDate');
   const timeSel = document.getElementById('schedTime');
-  const isToday = dateSel.value === 'today';
-  const slots = isToday ? todaySlots() : fullDaySlots();
+  const offset = parseInt(dateSel.value, 10);
 
   timeSel.innerHTML = '';
+  if (isNaN(offset)) return;
+
+  const slots = offset === 0 ? todaySlots() : fullDaySlots();
   slots.forEach(mins => {
     const opt = document.createElement('option');
     opt.value = String(mins);
@@ -591,24 +657,26 @@ function onScheduleChange() {
 function getScheduleSelection() {
   const dateSel = document.getElementById('schedDate');
   const timeSel = document.getElementById('schedTime');
-  const isToday = dateSel.value === 'today';
+  const offset = parseInt(dateSel.value, 10);
   const mins = parseInt(timeSel.value, 10);
 
-  if (isNaN(mins) || mins < BUSINESS_OPEN_MIN || mins > BUSINESS_CLOSE_MIN) return { ok: false };
+  if (isNaN(offset) || isNaN(mins) || mins < BUSINESS_OPEN_MIN || mins > BUSINESS_CLOSE_MIN) return { ok: false };
 
-  if (isToday) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+
+  if (!isDateOpen(d)) return { ok: false };
+
+  if (offset === 0) {
     const now = new Date();
     const nowMin = now.getHours() * 60 + now.getMinutes();
     if (mins < nowMin + LEAD_TIME_MIN) return { ok: false };
   }
 
-  const d = new Date();
-  if (!isToday) d.setDate(d.getDate() + 1);
-
   return {
     ok: true,
     dateKey: dateKey(d),
-    dateLabel: (isToday ? 'Today' : 'Tomorrow') + ' — ' + dateLabel(d),
+    dateLabel: scheduleDateLabel(offset, d),
     timeLabel: minutesToLabel(mins),
     time24h: minutesTo24h(mins)
   };
@@ -867,8 +935,116 @@ function renderMyOrders(orders) {
   });
 }
 
+function loadScheduleOverrides() {
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'getScheduleOverrides' })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.ok && data.overrides) {
+        scheduleOverrides = data.overrides;
+        initSchedule();
+      }
+    })
+    .catch(() => { /* keep default Mon–Wed rule if backend isn't reachable */ });
+}
+
+let adminUnlocked = false;
+let adminKeyEntered = null;
+
+function initAdmin() {
+  const isAdminUrl = new URLSearchParams(location.search).get('admin') === '1';
+  if (!isAdminUrl) return;
+
+  const key = prompt('Enter admin passcode:');
+  if (key !== ADMIN_KEY) {
+    alert('Incorrect passcode.');
+    return;
+  }
+
+  adminUnlocked = true;
+  adminKeyEntered = key;
+
+  document.querySelector('.top-tabs').style.display = 'none';
+  document.getElementById('orderForm').style.display = 'none';
+  document.getElementById('myOrdersView').style.display = 'none';
+  document.getElementById('successScreen').style.display = 'none';
+  document.getElementById('adminView').style.display = '';
+
+  renderAdminSchedule();
+}
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function renderAdminSchedule() {
+  const list = document.getElementById('adminScheduleList');
+  list.innerHTML = '';
+
+  for (let offset = 0; offset < SCHEDULE_LOOKAHEAD_DAYS; offset++) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    const key = dateKey(d);
+    const isDefaultOpen = OPEN_WEEKDAYS.includes(d.getDay());
+    const override = scheduleOverrides[key]; // 'open' | 'closed' | undefined
+
+    const status = override || (isDefaultOpen ? 'default-open' : 'default-closed');
+
+    const row = document.createElement('div');
+    row.className = 'admin-day-row';
+
+    const info = document.createElement('div');
+    info.className = 'admin-day-info';
+    info.innerHTML = `<span class="admin-day-name">${WEEKDAY_NAMES[d.getDay()]}${offset === 0 ? ' (Today)' : ''}</span>
+      <span class="admin-day-date">${dateLabel(d)}${override ? '' : (isDefaultOpen ? ' · default open' : ' · default closed')}</span>`;
+
+    const btn = document.createElement('button');
+    btn.className = 'admin-status-btn ' + (
+      override === 'open' ? 'status-open' : override === 'closed' ? 'status-closed' : 'status-default'
+    );
+    btn.textContent = override === 'open' ? 'Open (forced)' : override === 'closed' ? 'Closed (forced)' : 'Default';
+    btn.onclick = () => cycleOverride(key, override);
+
+    row.appendChild(info);
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+function cycleOverride(key, currentOverride) {
+  // Cycle: default -> open -> closed -> default
+  const next = currentOverride === undefined ? 'open' : currentOverride === 'open' ? 'closed' : undefined;
+
+  if (next === undefined) {
+    delete scheduleOverrides[key];
+  } else {
+    scheduleOverrides[key] = next;
+  }
+
+  renderAdminSchedule();
+  saveOverride(key, next);
+}
+
+function saveOverride(dateKeyValue, status) {
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'setScheduleOverride',
+      adminKey: adminKeyEntered,
+      date: dateKeyValue,
+      status: status || 'default' // 'open' | 'closed' | 'default'
+    })
+  }).catch(() => {
+    alert('Could not save to server. Check your internet connection and try again.');
+  });
+}
+
 renderItems();
 initSchedule();
+loadScheduleOverrides();
+initAdmin();
 </script>
 </body>
 </html>
