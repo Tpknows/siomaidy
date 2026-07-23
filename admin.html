@@ -1,4 +1,4 @@
-<!-- Last updated: 2026-07-23 | TP | Change: added Admin/Staff login system (Users tab in sheet), Staff role hides sales figures, all actions logged to ActivityLog tab -->
+<!-- Last updated: 2026-07-23 | TP | Change: added Admin/Staff login system (Users tab in sheet), Staff role hides sales figures, all actions logged to ActivityLog tab. Added "Change Password" modal so logged-in users can update their own password. -->
 <!DOCTYPE html>
 <html lang="fil">
 <head>
@@ -316,6 +316,87 @@
     margin-top: 10px;
     min-height: 14px;
   }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+
+  .modal-card {
+    background: #2B1610;
+    border: 1px solid #C9A24B;
+    border-radius: 10px;
+    padding: 26px 24px;
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .modal-card h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+    color: #C9A24B;
+    font-size: 19px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .modal-card .field { margin-bottom: 10px; }
+
+  .modal-card .field input {
+    width: 100%;
+    background: #3A2015;
+    border: 1px solid #5C4326;
+    border-radius: 6px;
+    color: #F3E7C9;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 14px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .modal-card .field input:focus { border-color: #C9A24B; }
+  .modal-card .field input::placeholder { color: #7a6040; }
+
+  .modal-error {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 12px;
+    color: #e06060;
+    margin: 4px 0 10px;
+    min-height: 14px;
+  }
+
+  .modal-success {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 12px;
+    color: #5BCF8A;
+    margin: 4px 0 10px;
+    min-height: 14px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  .modal-actions button { flex: 1; }
+
+  .modal-cancel-btn {
+    background: transparent;
+    border: 1px solid #5C4326;
+    color: #B79A6E;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .modal-cancel-btn:hover { border-color: #C9A24B; color: #C9A24B; }
 </style>
 </head>
 <body>
@@ -347,9 +428,31 @@
     <span id="userTag" style="font-size:12px; color:#B79A6E;"></span>
     <span id="syncStatus" style="font-size:11px; color:#7a6040;"></span>
     <button class="refresh-btn" id="refreshBtn" onclick="loadOrders()">🔄 Refresh</button>
+    <button class="refresh-btn" onclick="openChangePasswordModal()">🔑 Change Password</button>
     <button class="refresh-btn" onclick="logout()">Log Out</button>
   </div>
 </header>
+
+<div class="modal-overlay" id="changePasswordModal">
+  <div class="modal-card">
+    <h3>Change Password</h3>
+    <div class="field">
+      <input type="password" id="cpOldPassword" placeholder="Current password" autocomplete="current-password">
+    </div>
+    <div class="field">
+      <input type="password" id="cpNewPassword" placeholder="New password" autocomplete="new-password">
+    </div>
+    <div class="field">
+      <input type="password" id="cpConfirmPassword" placeholder="Confirm new password" autocomplete="new-password">
+    </div>
+    <div class="modal-error" id="cpError"></div>
+    <div class="modal-success" id="cpSuccess"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel-btn" onclick="closeChangePasswordModal()">Cancel</button>
+      <button class="refresh-btn" id="cpSubmitBtn" onclick="submitChangePassword()">Save</button>
+    </div>
+  </div>
+</div>
 
 <div class="stats-bar" id="statsBar">
   <div class="stat-card"><div class="label">Total Orders</div><div class="value" id="statTotal">0</div></div>
@@ -643,6 +746,75 @@ function clearAll() {
     .catch(err => {
       console.error(err);
       alert('Hindi na-clear. Subukan ulit.');
+    });
+}
+
+function openChangePasswordModal() {
+  document.getElementById('cpOldPassword').value = '';
+  document.getElementById('cpNewPassword').value = '';
+  document.getElementById('cpConfirmPassword').value = '';
+  document.getElementById('cpError').textContent = '';
+  document.getElementById('cpSuccess').textContent = '';
+  document.getElementById('changePasswordModal').style.display = 'flex';
+}
+
+function closeChangePasswordModal() {
+  document.getElementById('changePasswordModal').style.display = 'none';
+}
+
+function submitChangePassword() {
+  const oldPassword = document.getElementById('cpOldPassword').value;
+  const newPassword = document.getElementById('cpNewPassword').value;
+  const confirmPassword = document.getElementById('cpConfirmPassword').value;
+  const errEl = document.getElementById('cpError');
+  const okEl = document.getElementById('cpSuccess');
+  const btn = document.getElementById('cpSubmitBtn');
+
+  errEl.textContent = '';
+  okEl.textContent = '';
+
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    errEl.textContent = 'Punan ang lahat ng fields.';
+    return;
+  }
+  if (newPassword.length < 6) {
+    errEl.textContent = 'Dapat hindi bababa sa 6 characters ang bagong password.';
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    errEl.textContent = 'Hindi magkatugma ang bagong password at confirm.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sinesave...';
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'changePassword',
+      username: currentUser.username,
+      oldPassword,
+      newPassword
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      okEl.textContent = 'Na-update na ang password!';
+      document.getElementById('cpOldPassword').value = '';
+      document.getElementById('cpNewPassword').value = '';
+      document.getElementById('cpConfirmPassword').value = '';
+    })
+    .catch(err => {
+      errEl.textContent = err.message === 'Current password is incorrect'
+        ? 'Mali ang current password.'
+        : (err.message || 'Hindi na-save. Subukan ulit.');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Save';
     });
 }
 
