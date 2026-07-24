@@ -978,6 +978,9 @@ function loadScheduleOverrides() {
         scheduleOverrides = data.overrides;
         initTimingDefault();
         initSchedule();
+        // Admin panel may have already rendered with stale (empty) overrides
+        // before this fetch resolved - re-render now that we have real data.
+        if (adminUnlocked) renderAdminSchedule();
       }
     })
     .catch(() => { /* keep default Mon–Wed rule if backend isn't reachable */ });
