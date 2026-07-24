@@ -32,6 +32,13 @@
   header .brand { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; color: #C9A24B; }
   header .sub { font-size: 11px; color: #B79A6E; letter-spacing: 2px; text-transform: uppercase; }
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .refresh-btn {
     background: transparent;
     border: 1px solid #C9A24B;
@@ -41,6 +48,7 @@
     font-size: 13px;
     cursor: pointer;
     transition: background 0.2s;
+    white-space: nowrap;
   }
   .refresh-btn:hover { background: rgba(201,162,75,0.15); }
 
@@ -92,6 +100,7 @@
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
   }
 
   .filter-btn.active {
@@ -147,6 +156,7 @@
     color: #7a6040;
     letter-spacing: 1px;
     margin-bottom: 2px;
+    word-break: break-all;
   }
 
   .order-name {
@@ -177,6 +187,7 @@
     font-size: 11px;
     color: #7a6040;
     margin-top: 2px;
+    white-space: nowrap;
   }
 
   .badge {
@@ -249,6 +260,7 @@
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
   }
 
   .delete-btn:hover { border-color: #e06060; color: #e06060; }
@@ -270,6 +282,7 @@
     cursor: pointer;
     margin-left: auto;
     transition: all 0.15s;
+    white-space: nowrap;
   }
 
   .clear-all-btn:hover { border-color: #e06060; color: #e06060; }
@@ -301,7 +314,7 @@
     border-radius: 6px;
     color: #F3E7C9;
     font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     padding: 11px 14px;
     outline: none;
     transition: border-color 0.2s;
@@ -335,6 +348,8 @@
     padding: 26px 24px;
     width: 100%;
     max-width: 340px;
+    max-height: 85vh;
+    overflow-y: auto;
   }
 
   .modal-card h3 {
@@ -354,7 +369,7 @@
     border-radius: 6px;
     color: #F3E7C9;
     font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     padding: 11px 14px;
     outline: none;
     transition: border-color 0.2s;
@@ -407,10 +422,38 @@
     border-radius: 8px;
     padding: 10px 14px;
     gap: 10px;
+    flex-wrap: wrap;
   }
   .account-row .info { font-family: 'Inter', Helvetica, sans-serif; }
   .account-row .info .uname { color: #F3E7C9; font-size: 14px; font-weight: bold; }
   .account-row .info .role { color: #B79A6E; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ---- Mobile optimization ---- */
+  @media (max-width: 640px) {
+    header { padding: 12px 14px; }
+    header .brand { font-size: 19px; }
+
+    .header-actions { gap: 8px; width: 100%; }
+    .header-actions #userTag,
+    .header-actions #syncStatus { flex-basis: 100%; }
+    .refresh-btn { flex: 1 1 auto; padding: 9px 12px; font-size: 12.5px; text-align: center; }
+
+    .stats-bar { padding: 12px 14px; gap: 8px; }
+    .stat-card { min-width: calc(50% - 4px); padding: 10px 14px; }
+    .stat-card .value { font-size: 20px; }
+
+    .filter-bar { padding: 0 14px 12px; }
+    .filter-btn { padding: 7px 12px; }
+    .clear-all-btn { margin-left: 0; flex-basis: 100%; text-align: center; }
+
+    .orders-container { padding: 0 14px 32px; }
+    .order-header { padding: 12px 14px 8px; }
+    .order-name { font-size: 16px; }
+    .order-right { text-align: left; }
+
+    .order-footer { padding: 10px 14px; }
+    .status-select { flex: 1 1 auto; }
+  }
 </style>
 </head>
 <body>
@@ -438,7 +481,7 @@
     <div class="brand">Siomai D' 🍱</div>
     <div class="sub">Admin Dashboard</div>
   </div>
-  <div style="display:flex; align-items:center; gap:10px;">
+  <div class="header-actions">
     <span id="userTag" style="font-size:12px; color:#B79A6E;"></span>
     <span id="syncStatus" style="font-size:11px; color:#7a6040;"></span>
     <button class="refresh-btn" id="refreshBtn" onclick="loadOrders()">🔄 Refresh</button>
