@@ -431,9 +431,7 @@
   </div>
 
   <div class="section-label">Choose Your Date & Time</div>
-  <div style="font-size:12px; color:#B79A6E; margin-top:-4px; margin-bottom:6px;">
-    We only accept orders for Monday–Wednesday, 8:00–10:00 AM.
-  </div>
+  <div id="scheduleNote" style="font-size:12px; color:#B79A6E; margin-top:-4px; margin-bottom:6px;"></div>
   <div class="field" style="display:flex; gap:10px;">
     <select id="schedDate" onchange="onScheduleChange()" style="flex:1;"></select>
     <select id="schedTime" onchange="onScheduleChange()" style="flex:1;"></select>
@@ -563,17 +561,26 @@ function copyGcashNumber() {
 }
 
 // Business rules for scheduled pickup/delivery time.
-// Orders are only accepted for Monday, Tuesday, or Wednesday, between
-// 8:00 AM and 10:00 AM. If today is outside that window (wrong weekday, or
-// past 10:00 AM / the lead time), the next valid Mon/Tue/Wed is offered
-// instead - so advance ordering into next week works automatically.
-const BUSINESS_OPEN_MIN = 8 * 60;    // 8:00 AM
-const BUSINESS_CLOSE_MIN = 10 * 60;  // 10:00 AM
+// Orders are only accepted for Monday, Tuesday, or Wednesday. The time
+// window itself depends on the mode:
+//   - Delivery: 8:00-10:00 AM only (needs the rest of the day to prepare + route deliveries)
+//   - Pickup:   12:00 PM-9:00 PM (opens again once delivery prep is done)
+// If today is outside the current mode's window (wrong weekday, past
+// closing time, or inside the lead time), the next valid Mon/Tue/Wed is
+// offered instead - so advance ordering into next week works automatically.
+const SCHEDULE_WINDOWS = {
+  delivery: { open: 8 * 60, close: 10 * 60 },   // 8:00-10:00 AM
+  pickup:   { open: 12 * 60, close: 21 * 60 }   // 12:00 PM-9:00 PM
+};
 const LEAD_TIME_MIN = 30;            // minimum 30 mins from now
 const SLOT_STEP_MIN = 30;
 const VALID_WEEKDAYS = [1, 2, 3];    // 0=Sun...6=Sat -> Mon, Tue, Wed only
 const MAX_DATE_OPTIONS = 6;          // how many upcoming valid dates to offer
 const MAX_DAYS_TO_SCAN = 28;         // safety limit while scanning forward
+
+function currentWindow() {
+  return SCHEDULE_WINDOWS[mode] || SCHEDULE_WINDOWS.pickup;
+}
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 
@@ -602,25 +609,26 @@ function isValidOrderWeekday(d) {
   return VALID_WEEKDAYS.indexOf(d.getDay()) !== -1;
 }
 
-// Slot-start minutes (multiples of SLOT_STEP_MIN) within the 8-10AM window.
-// When isToday is true, also respects the 30-min lead time from right now.
+// Slot-start minutes (multiples of SLOT_STEP_MIN) within the current mode's
+// window. When isToday is true, also respects the 30-min lead time from now.
 function daySlots(isToday) {
+  const win = currentWindow();
   if (!isToday) {
     const slots = [];
-    for (let t = BUSINESS_OPEN_MIN; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
+    for (let t = win.open; t <= win.close; t += SLOT_STEP_MIN) slots.push(t);
     return slots;
   }
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const earliest = nowMin + LEAD_TIME_MIN;
-  const start = Math.max(BUSINESS_OPEN_MIN, Math.ceil(earliest / SLOT_STEP_MIN) * SLOT_STEP_MIN);
+  const start = Math.max(win.open, Math.ceil(earliest / SLOT_STEP_MIN) * SLOT_STEP_MIN);
   const slots = [];
-  for (let t = start; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
+  for (let t = start; t <= win.close; t += SLOT_STEP_MIN) slots.push(t);
   return slots;
 }
 
 // Returns the next upcoming Mon/Tue/Wed dates (including today if it still
-// has slots left), up to MAX_DATE_OPTIONS.
+// has slots left for the current mode's window), up to MAX_DATE_OPTIONS.
 function getValidDates() {
   const dates = [];
   const today = new Date();
@@ -636,9 +644,23 @@ function getValidDates() {
   return dates;
 }
 
+function scheduleNoteText() {
+  return mode === 'delivery'
+    ? 'For delivery, we only accept orders Monday–Wednesday, 8:00–10:00 AM (so we have time to prepare and route deliveries).'
+    : 'For pickup, we accept orders Monday–Wednesday, 12:00 PM–9:00 PM.';
+}
+
+function scheduleErrorText() {
+  const win = currentWindow();
+  return `Please select a valid time — Monday to Wednesday, ${minutesToLabel(win.open)} to ${minutesToLabel(win.close)}, at least 30 minutes from now.`;
+}
+
 function initSchedule() {
   const dateSel = document.getElementById('schedDate');
   dateSel.innerHTML = '';
+
+  document.getElementById('scheduleNote').textContent = scheduleNoteText();
+  document.getElementById('errSchedule').textContent = scheduleErrorText();
 
   const todayKey = dateKey(new Date());
   const dates = getValidDates();
@@ -681,8 +703,9 @@ function getScheduleSelection() {
   const timeSel = document.getElementById('schedTime');
   const dateVal = dateSel.value;
   const mins = parseInt(timeSel.value, 10);
+  const win = currentWindow();
 
-  if (!dateVal || isNaN(mins) || mins < BUSINESS_OPEN_MIN || mins > BUSINESS_CLOSE_MIN) return { ok: false };
+  if (!dateVal || isNaN(mins) || mins < win.open || mins > win.close) return { ok: false };
 
   const todayKey = dateKey(new Date());
   const isToday = dateVal === todayKey;
@@ -712,6 +735,7 @@ function setMode(m) {
   document.getElementById('btnPickup').classList.toggle('active', m === 'pickup');
   document.getElementById('addressField').style.display = m === 'delivery' ? '' : 'none';
   document.getElementById('deliveryNote').style.display = m === 'delivery' ? '' : 'none';
+  initSchedule(); // window (and therefore available dates/times) depends on mode
 }
 
 function renderItems() {
@@ -978,7 +1002,6 @@ function resetForm() {
   document.getElementById('custNote').value = '';
   setMode('delivery');
   setPaymentMethod('cash');
-  initSchedule();
   renderItems();
   document.getElementById('orderForm').style.display = '';
   document.getElementById('successScreen').style.display = 'none';
