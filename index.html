@@ -1,4 +1,4 @@
-<!-- Last updated: 2026-07-23 | TP | Change: added lightweight customer accounts (contact number + 4-digit PIN, no password needed) and a "My Orders" tab so customers can look up their order status/history by contact + PIN. -->
+<!-- Last updated: 2026-07-23 | TP | Change: order dates now default to Monday–Wednesday only (advance orders up to 14 days ahead, Thu–Sun closed by default). Added an admin panel (index.html?admin=1) to force specific dates open or closed, overriding the default. Requires backend support for 'getScheduleOverrides' and 'setScheduleOverride' actions — see accompanying Apps Script notes. Added a Same Day / Advance Booking toggle: Same Day only offers "Today" (if open and slots remain), Advance Booking offers offset 1–14 days ahead. Defaults to whichever is actually available. 'orderTiming' is now included in the submitted order payload. -->
 <!DOCTYPE html>
 <html lang="fil">
 <head>
@@ -12,10 +12,10 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: #1a1008;
+    background: #FDF8F0;
     font-family: 'Inter', Helvetica, Arial, sans-serif;
     min-height: 100vh;
-    color: #F3E7C9;
+    color: #2B1610;
   }
 
   header {
@@ -52,17 +52,17 @@
     font-size: 11px;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: #C9A24B;
+    color: #8A5C2A;
     margin-bottom: 10px;
     margin-top: 28px;
   }
 
   .field input, .field select {
     width: 100%;
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: #FFFFFF;
+    border: 1px solid #D4B896;
     border-radius: 6px;
-    color: #F3E7C9;
+    color: #2B1610;
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 15px;
     padding: 12px 14px;
@@ -74,9 +74,9 @@
     border-color: #C9A24B;
   }
 
-  .field input::placeholder { color: #7a6040; }
+  .field input::placeholder { color: #B09070; }
 
-  .field select option { background: #2B1610; }
+  .field select option { background: #FFFFFF; color: #2B1610; }
 
   .toggle-row {
     display: flex;
@@ -88,9 +88,9 @@
     flex: 1;
     padding: 12px;
     border-radius: 6px;
-    border: 1px solid #5C4326;
-    background: #3A2015;
-    color: #B79A6E;
+    border: 1px solid #D4B896;
+    background: #EDE0CC;
+    color: #7A5C3A;
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 14px;
     cursor: pointer;
@@ -105,6 +105,38 @@
     font-weight: bold;
   }
 
+  .admin-day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #D4B896;
+    border-radius: 6px;
+    background: #FFFFFF;
+    margin-bottom: 8px;
+  }
+
+  .admin-day-info { display: flex; flex-direction: column; }
+  .admin-day-name { font-size: 14px; color: #2B1610; font-weight: 600; }
+  .admin-day-date { font-size: 11.5px; color: #7A5C3A; margin-top: 1px; }
+
+  .admin-status-btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid #5C4326;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-weight: 600;
+    min-width: 92px;
+    text-align: center;
+  }
+
+  .admin-status-btn.status-open { background: #2f5233; border-color: #4a8f52; color: #b7e6bd; }
+  .admin-status-btn.status-closed { background: #5a2323; border-color: #8f4a4a; color: #e6b7b7; }
+  .admin-status-btn.status-default { background: #EDE0CC; border-color: #D4B896; color: #7A5C3A; }
+
   .items-list {
     display: flex;
     flex-direction: column;
@@ -112,8 +144,8 @@
   }
 
   .menu-item-card {
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: #FFFFFF;
+    border: 1px solid #D4B896;
     border-radius: 8px;
     padding: 14px 16px;
     display: flex;
@@ -124,7 +156,7 @@
 
   .menu-item-card .info .name {
     font-size: 15px;
-    color: #F3E7C9;
+    color: #2B1610;
   }
 
   .menu-item-card .info .price {
@@ -163,13 +195,13 @@
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 16px;
     font-weight: bold;
-    color: #F3E7C9;
+    color: #2B1610;
     min-width: 20px;
     text-align: center;
   }
 
   .order-summary {
-    background: #2B1610;
+    background: #FFF8EC;
     border: 1px solid #C9A24B;
     border-radius: 8px;
     padding: 16px;
@@ -182,14 +214,14 @@
     display: flex;
     justify-content: space-between;
     padding: 4px 0;
-    color: #B79A6E;
+    color: #7A5C3A;
   }
 
   .summary-row.total {
     font-size: 18px;
     font-weight: bold;
     color: #C9A24B;
-    border-top: 1px solid #5C4326;
+    border-top: 1px solid #D4B896;
     margin-top: 8px;
     padding-top: 10px;
     font-family: 'Playfair Display', Georgia, serif;
@@ -212,7 +244,7 @@
   }
 
   .submit-btn:hover { background: #dbb45c; }
-  .submit-btn:disabled { background: #5C4326; color: #8a6a4a; cursor: not-allowed; }
+  .submit-btn:disabled { background: #D4B896; color: #A08060; cursor: not-allowed; }
 
   .success-screen {
     display: none;
@@ -261,10 +293,10 @@
 
   .note-input {
     width: 100%;
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: #FFFFFF;
+    border: 1px solid #D4B896;
     border-radius: 6px;
-    color: #F3E7C9;
+    color: #2B1610;
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 14px;
     padding: 11px 14px;
@@ -274,7 +306,7 @@
     transition: border-color 0.2s;
   }
   .note-input:focus { border-color: #C9A24B; }
-  .note-input::placeholder { color: #7a6040; }
+  .note-input::placeholder { color: #B09070; }
 
   .top-tabs {
     display: flex;
@@ -288,9 +320,9 @@
     flex: 1;
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid #5C4326;
-    background: #2B1610;
-    color: #B79A6E;
+    border: 1px solid #D4B896;
+    background: #EDE0CC;
+    color: #7A5C3A;
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 14px;
     cursor: pointer;
@@ -306,8 +338,8 @@
   }
 
   .my-order-card {
-    background: #2B1610;
-    border: 1px solid #5C4326;
+    background: #FFFFFF;
+    border: 1px solid #D4B896;
     border-radius: 10px;
     overflow: hidden;
   }
@@ -322,13 +354,13 @@
 
   .my-order-id {
     font-size: 11px;
-    color: #7a6040;
+    color: #B09070;
     letter-spacing: 1px;
   }
 
   .my-order-date {
     font-size: 12px;
-    color: #B79A6E;
+    color: #7A5C3A;
     margin-top: 3px;
   }
 
@@ -349,7 +381,7 @@
   .badge-Cancelled  { background: rgba(224,96,96,0.15); color: #e06060; }
 
   .my-order-items {
-    border-top: 1px solid #3A2015;
+    border-top: 1px solid #EDE0CC;
     padding: 10px 16px;
   }
 
@@ -359,18 +391,18 @@
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 13px;
     padding: 3px 0;
-    color: #c4a87a;
+    color: #5A3A1A;
   }
 
   .my-order-footer {
-    border-top: 1px solid #3A2015;
+    border-top: 1px solid #EDE0CC;
     padding: 10px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 13px;
-    color: #B79A6E;
+    color: #7A5C3A;
   }
 
   .my-order-total {
@@ -431,12 +463,15 @@
   </div>
 
   <div class="section-label">Choose Your Date & Time</div>
-  <div id="scheduleNote" style="font-size:12px; color:#B79A6E; margin-top:-4px; margin-bottom:6px;"></div>
-  <div class="field" style="display:flex; gap:10px;">
+  <div class="toggle-row">
+    <div class="toggle-btn active" id="btnSameDay" onclick="setTiming('sameday')">⚡ Same Day</div>
+    <div class="toggle-btn" id="btnAdvance" onclick="setTiming('advance')">📅 Advance Booking</div>
+  </div>
+  <div class="field" style="display:flex; gap:10px; margin-top:10px;">
     <select id="schedDate" onchange="onScheduleChange()" style="flex:1;"></select>
     <select id="schedTime" onchange="onScheduleChange()" style="flex:1;"></select>
   </div>
-  <div class="error-msg" id="errSchedule">Please select a valid time — Monday to Wednesday, 8:00 AM to 10:00 AM, at least 30 minutes from now.</div>
+  <div class="error-msg" id="errSchedule">Please select a valid time — 12:00 PM to 9:00 PM, at least 30 minutes from now.</div>
 
   <div class="section-label">Your Order</div>
   <div class="items-list" id="itemsList"></div>
@@ -445,18 +480,9 @@
   <div class="section-label">Notes (optional)</div>
   <textarea class="note-input" id="custNote" placeholder="e.g. extra sauce, less spicy…"></textarea>
 
-  <div class="section-label">Payment Method</div>
-  <div class="toggle-row">
-    <div class="toggle-btn active" id="btnCash" onclick="setPaymentMethod('cash')">💵 Cash</div>
-    <div class="toggle-btn" id="btnGcash" onclick="setPaymentMethod('gcash')">📱 GCash</div>
-  </div>
-  <div id="gcashPreNote" style="display:none; margin-top:10px; font-size:12.5px; color:#B79A6E; background:#3A2015; border:1px solid #5C4326; border-radius:6px; padding:10px 12px; line-height:1.5;">
-    ℹ️ After placing your order, you'll be shown our GCash details to send payment and submit your reference number.
-  </div>
-
   <div class="section-label">Order Summary</div>
   <div class="order-summary" id="summaryBox">
-    <div class="summary-row" style="color:#7a6040; font-style:italic;">No items selected yet.</div>
+    <div class="summary-row" style="color:#B09070; font-style:italic;">No items selected yet.</div>
   </div>
 
   <button class="submit-btn" id="submitBtn" onclick="submitOrder()">Place Order</button>
@@ -468,42 +494,8 @@
   <h2>Order Placed!</h2>
   <p id="successName"></p>
   <p id="successMode"></p>
-  <p style="margin-top:12px; color:#C9A24B; font-size:16px;" id="successTotal"></p>
+  <p style="margin-top:12px; color:#8A5C2A; font-size:16px;" id="successTotal"></p>
   <button class="order-again-btn" onclick="resetForm()">Place Another Order</button>
-</div>
-
-<div class="container" id="paymentScreen" style="display:none;">
-  <div class="section-label" style="margin-top:0;">Complete Your GCash Payment</div>
-
-  <div style="background:#3A2015; border:1px solid #5C4326; border-radius:10px; padding:16px; text-align:center; margin-top:6px;">
-    <div style="font-size:12px; color:#B79A6E; letter-spacing:1px; text-transform:uppercase;">Amount to Pay</div>
-    <div style="font-family:'Playfair Display',Georgia,serif; font-size:26px; color:#C9A24B; font-weight:bold; margin:4px 0 12px;" id="paymentAmount">₱0</div>
-
-    <img src="" id="gcashQr" alt="GCash QR" style="width:170px; height:170px; border-radius:8px; border:1px solid #5C4326; object-fit:cover; display:none;">
-
-    <div style="margin-top:10px;">
-      <div style="font-size:12px; color:#B79A6E;">Send to</div>
-      <div style="font-size:19px; font-weight:bold; color:#F3E7C9; letter-spacing:1px;" id="gcashNumber">0917-000-0000</div>
-      <div style="font-size:13px; color:#B79A6E;" id="gcashName">Siomai D'</div>
-      <button type="button" onclick="copyGcashNumber()" style="margin-top:8px; background:transparent; border:1px solid #5C4326; color:#C9A24B; padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer;">Copy Number</button>
-    </div>
-  </div>
-
-  <div style="font-size:12.5px; color:#B79A6E; margin-top:14px; line-height:1.5;">
-    1. Open your GCash app and send the exact amount above to the number shown.<br>
-    2. Enter the GCash reference number from your receipt below.<br>
-    3. We'll confirm your payment shortly — no need to leave this page.
-  </div>
-
-  <div style="height:14px"></div>
-  <div class="field">
-    <input type="text" id="gcashRefInput" placeholder="GCash Reference Number" maxlength="30">
-    <div class="error-msg" id="errGcashRef">Please enter your GCash reference number.</div>
-  </div>
-
-  <button class="submit-btn" id="gcashSubmitBtn" onclick="submitGcashPayment()">I've Sent the Payment</button>
-
-  <div id="paymentStatusBox" style="display:none; margin-top:16px; text-align:center; padding:14px; border-radius:8px;"></div>
 </div>
 
 <div class="container" id="myOrdersView" style="display:none;">
@@ -520,8 +512,19 @@
   <div id="myOrdersList" style="margin-top:20px; display:flex; flex-direction:column; gap:12px;"></div>
 </div>
 
+<div class="container" id="adminView" style="display:none;">
+  <div class="section-label" style="margin-top:0;">Manage Open / Closed Dates</div>
+  <p style="font-size:12.5px; color:#7A5C3A; margin-bottom:14px; line-height:1.5;">
+    Default: open Mon–Wed, closed Thu–Sun. Tap a date to override it. Tap again to cycle: Default → Open → Closed.
+  </p>
+  <div id="adminScheduleList"></div>
+</div>
+
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzB2IajsTUZ6-bWDQjJbu9KLyZ1KrGIj09O7pD7xmYqPFSBj_QhQ092J7thBTocSuo2/exec';
+
+// Change this to your own passcode. Access the panel via index.html?admin=1
+const ADMIN_KEY = 'siomai2026';
 
 const MENU = [
   { id: 'pork', name: 'Pork Siomai', note: 'per piece', price: 11 },
@@ -534,52 +537,28 @@ const qty = {};
 MENU.forEach(m => qty[m.id] = 0);
 
 let mode = 'delivery';
-let paymentMethod = 'cash';
-let lastOrder = null; // { id, contact, pin } for the order currently awaiting GCash payment
-let paymentPollTimer = null;
+let orderTiming = 'sameday'; // 'sameday' | 'advance'
 
-// Update these with the shop's actual GCash details. Leave GCASH_QR_URL empty
-// to hide the QR image and show the number/name only.
-const GCASH_NUMBER = '0917-000-0000';
-const GCASH_NAME = "Siomai D'";
-const GCASH_QR_URL = '';
-
-function setPaymentMethod(m) {
-  paymentMethod = m;
-  document.getElementById('btnCash').classList.toggle('active', m === 'cash');
-  document.getElementById('btnGcash').classList.toggle('active', m === 'gcash');
-  document.getElementById('gcashPreNote').style.display = m === 'gcash' ? '' : 'none';
-}
-
-function copyGcashNumber() {
-  navigator.clipboard?.writeText(GCASH_NUMBER.replace(/-/g, ''))
-    .then(() => {
-      const btn = event?.target;
-      if (btn) { const old = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = old, 1500); }
-    })
-    .catch(() => {});
-}
-
-// Business rules for scheduled pickup/delivery time.
-// Orders are only accepted for Monday, Tuesday, or Wednesday. The time
-// window itself depends on the mode:
-//   - Delivery: 8:00-10:00 AM only (needs the rest of the day to prepare + route deliveries)
-//   - Pickup:   12:00 PM-9:00 PM (opens again once delivery prep is done)
-// If today is outside the current mode's window (wrong weekday, past
-// closing time, or inside the lead time), the next valid Mon/Tue/Wed is
-// offered instead - so advance ordering into next week works automatically.
-const SCHEDULE_WINDOWS = {
-  delivery: { open: 8 * 60, close: 10 * 60 },   // 8:00-10:00 AM
-  pickup:   { open: 12 * 60, close: 21 * 60 }   // 12:00 PM-9:00 PM
-};
+// Business rules for scheduled pickup/delivery time
+const BUSINESS_OPEN_MIN = 12 * 60;   // 12:00 PM
+const BUSINESS_CLOSE_MIN = 21 * 60;  // 9:00 PM
 const LEAD_TIME_MIN = 30;            // minimum 30 mins from now
 const SLOT_STEP_MIN = 30;
-const VALID_WEEKDAYS = [1, 2, 3];    // 0=Sun...6=Sat -> Mon, Tue, Wed only
-const MAX_DATE_OPTIONS = 6;          // how many upcoming valid dates to offer
-const MAX_DAYS_TO_SCAN = 28;         // safety limit while scanning forward
 
-function currentWindow() {
-  return SCHEDULE_WINDOWS[mode] || SCHEDULE_WINDOWS.pickup;
+// Which days are open by default (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat)
+// Default: Monday–Wednesday only. Admin can override specific dates via the admin panel.
+const OPEN_WEEKDAYS = [1, 2, 3];
+const SCHEDULE_LOOKAHEAD_DAYS = 14; // how many days ahead the date picker shows
+
+// Filled in from the backend on page load: { 'YYYY-MM-DD': 'open' | 'closed' }
+let scheduleOverrides = {};
+
+// Whether a given date is open for ordering, taking admin overrides into account.
+function isDateOpen(d) {
+  const key = dateKey(d);
+  if (scheduleOverrides[key] === 'open') return true;
+  if (scheduleOverrides[key] === 'closed') return false;
+  return OPEN_WEEKDAYS.includes(d.getDay());
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -605,84 +584,90 @@ function dateKey(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function isValidOrderWeekday(d) {
-  return VALID_WEEKDAYS.indexOf(d.getDay()) !== -1;
-}
-
-// Slot-start minutes (multiples of SLOT_STEP_MIN) within the current mode's
-// window. When isToday is true, also respects the 30-min lead time from now.
-function daySlots(isToday) {
-  const win = currentWindow();
-  if (!isToday) {
-    const slots = [];
-    for (let t = win.open; t <= win.close; t += SLOT_STEP_MIN) slots.push(t);
-    return slots;
-  }
+// Returns list of valid slot-start minutes (multiples of SLOT_STEP_MIN within business hours)
+// for "today", respecting the 30-min lead time from right now.
+function todaySlots() {
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const earliest = nowMin + LEAD_TIME_MIN;
-  const start = Math.max(win.open, Math.ceil(earliest / SLOT_STEP_MIN) * SLOT_STEP_MIN);
+  let start = Math.max(BUSINESS_OPEN_MIN, Math.ceil(earliest / SLOT_STEP_MIN) * SLOT_STEP_MIN);
   const slots = [];
-  for (let t = start; t <= win.close; t += SLOT_STEP_MIN) slots.push(t);
+  for (let t = start; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
   return slots;
 }
 
-// Returns the next upcoming Mon/Tue/Wed dates (including today if it still
-// has slots left for the current mode's window), up to MAX_DATE_OPTIONS.
-function getValidDates() {
-  const dates = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < MAX_DAYS_TO_SCAN && dates.length < MAX_DATE_OPTIONS; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    if (!isValidOrderWeekday(d)) continue;
-    if (i === 0 && daySlots(true).length === 0) continue; // today's window already passed
-    dates.push(d);
-  }
-  return dates;
+function fullDaySlots() {
+  const slots = [];
+  for (let t = BUSINESS_OPEN_MIN; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
+  return slots;
 }
 
-function scheduleNoteText() {
-  return mode === 'delivery'
-    ? 'For delivery, we only accept orders Monday–Wednesday, 8:00–10:00 AM (so we have time to prepare and route deliveries).'
-    : 'For pickup, we accept orders Monday–Wednesday, 12:00 PM–9:00 PM.';
-}
-
-function scheduleErrorText() {
-  const win = currentWindow();
-  return `Please select a valid time — Monday to Wednesday, ${minutesToLabel(win.open)} to ${minutesToLabel(win.close)}, at least 30 minutes from now.`;
+function scheduleDateLabel(offset, d) {
+  if (offset === 0) return `Today — ${dateLabel(d)}`;
+  if (offset === 1) return `Tomorrow — ${dateLabel(d)}`;
+  return dateLabel(d);
 }
 
 function initSchedule() {
   const dateSel = document.getElementById('schedDate');
   dateSel.innerHTML = '';
 
-  document.getElementById('scheduleNote').textContent = scheduleNoteText();
-  document.getElementById('errSchedule').textContent = scheduleErrorText();
+  // Same Day: only "today" (offset 0). Advance Booking: everything after today.
+  const minOffset = orderTiming === 'sameday' ? 0 : 1;
+  const maxOffset = orderTiming === 'sameday' ? 0 : SCHEDULE_LOOKAHEAD_DAYS;
 
-  const todayKey = dateKey(new Date());
-  const dates = getValidDates();
+  for (let offset = minOffset; offset <= maxOffset; offset++) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
 
-  dates.forEach(d => {
+    if (!isDateOpen(d)) continue;
+    if (offset === 0 && todaySlots().length === 0) continue; // no slots left today
+
     const opt = document.createElement('option');
-    const key = dateKey(d);
-    opt.value = key;
-    opt.textContent = (key === todayKey ? 'Today — ' : '') + dateLabel(d);
+    opt.value = String(offset);
+    opt.textContent = scheduleDateLabel(offset, d);
     dateSel.appendChild(opt);
-  });
+  }
+
+  if (!dateSel.options.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = orderTiming === 'sameday'
+      ? 'Not available today — try Advance Booking'
+      : 'No available dates — please check back later';
+    dateSel.appendChild(opt);
+  }
 
   populateTimeSlots();
+}
+
+// Switches between Same Day and Advance Booking date lists.
+function setTiming(t) {
+  orderTiming = t;
+  document.getElementById('btnSameDay').classList.toggle('active', t === 'sameday');
+  document.getElementById('btnAdvance').classList.toggle('active', t === 'advance');
+  initSchedule();
+}
+
+// Picks a sensible default when the page loads / overrides refresh:
+// Same Day if today is open and still has slots, otherwise Advance Booking.
+function initTimingDefault() {
+  const d = new Date();
+  const sameDayAvailable = isDateOpen(d) && todaySlots().length > 0;
+  orderTiming = sameDayAvailable ? 'sameday' : 'advance';
+  document.getElementById('btnSameDay').classList.toggle('active', orderTiming === 'sameday');
+  document.getElementById('btnAdvance').classList.toggle('active', orderTiming === 'advance');
 }
 
 function populateTimeSlots() {
   const dateSel = document.getElementById('schedDate');
   const timeSel = document.getElementById('schedTime');
-  const isToday = dateSel.value === dateKey(new Date());
-  const slots = daySlots(isToday);
+  const offset = parseInt(dateSel.value, 10);
 
   timeSel.innerHTML = '';
+  if (isNaN(offset)) return;
+
+  const slots = offset === 0 ? todaySlots() : fullDaySlots();
   slots.forEach(mins => {
     const opt = document.createElement('option');
     opt.value = String(mins);
@@ -697,33 +682,30 @@ function onScheduleChange() {
 }
 
 // Returns { ok, dateKey, dateLabel, timeLabel, time24h } for the currently selected schedule,
-// or { ok:false } if the selection has gone stale (e.g. lead time passed while form was open).
+// or { ok:false } if the selection has gone stale (e.g. "Today" but time already passed while form was open).
 function getScheduleSelection() {
   const dateSel = document.getElementById('schedDate');
   const timeSel = document.getElementById('schedTime');
-  const dateVal = dateSel.value;
+  const offset = parseInt(dateSel.value, 10);
   const mins = parseInt(timeSel.value, 10);
-  const win = currentWindow();
 
-  if (!dateVal || isNaN(mins) || mins < win.open || mins > win.close) return { ok: false };
+  if (isNaN(offset) || isNaN(mins) || mins < BUSINESS_OPEN_MIN || mins > BUSINESS_CLOSE_MIN) return { ok: false };
 
-  const todayKey = dateKey(new Date());
-  const isToday = dateVal === todayKey;
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
 
-  if (isToday) {
+  if (!isDateOpen(d)) return { ok: false };
+
+  if (offset === 0) {
     const now = new Date();
     const nowMin = now.getHours() * 60 + now.getMinutes();
     if (mins < nowMin + LEAD_TIME_MIN) return { ok: false };
   }
 
-  const [y, m, dd] = dateVal.split('-').map(Number);
-  const d = new Date(y, m - 1, dd);
-  if (!isValidOrderWeekday(d)) return { ok: false };
-
   return {
     ok: true,
-    dateKey: dateVal,
-    dateLabel: (isToday ? 'Today — ' : '') + dateLabel(d),
+    dateKey: dateKey(d),
+    dateLabel: scheduleDateLabel(offset, d),
     timeLabel: minutesToLabel(mins),
     time24h: minutesTo24h(mins)
   };
@@ -735,7 +717,6 @@ function setMode(m) {
   document.getElementById('btnPickup').classList.toggle('active', m === 'pickup');
   document.getElementById('addressField').style.display = m === 'delivery' ? '' : 'none';
   document.getElementById('deliveryNote').style.display = m === 'delivery' ? '' : 'none';
-  initSchedule(); // window (and therefore available dates/times) depends on mode
 }
 
 function renderItems() {
@@ -839,7 +820,7 @@ function submitOrder() {
     scheduleDate: schedule.dateKey,
     scheduleTime: schedule.time24h,
     scheduleLabel: `${schedule.dateLabel}, ${schedule.timeLabel}`,
-    paymentMethod,
+    orderTiming,
     items,
     total
   };
@@ -858,19 +839,13 @@ function submitOrder() {
     .then(data => {
       if (!data.ok) throw new Error(data.error || 'Unknown error');
 
-      lastOrder = { id: data.order.id, contact: order.contact, pin: order.pin };
+      document.getElementById('successName').textContent = `Hi, ${name}!`;
+      const modeText = mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
+      document.getElementById('successMode').textContent = `${modeText} — ${schedule.dateLabel}, ${schedule.timeLabel}`;
+      document.getElementById('successTotal').textContent = `Total: ₱${total}`;
 
-      if (paymentMethod === 'gcash') {
-        showPaymentScreen(name, total);
-      } else {
-        document.getElementById('successName').textContent = `Hi, ${name}!`;
-        const modeText = mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
-        document.getElementById('successMode').textContent = `${modeText} — ${schedule.dateLabel}, ${schedule.timeLabel}`;
-        document.getElementById('successTotal').textContent = `Total: ₱${total} · Cash on ${mode === 'delivery' ? 'Delivery' : 'Pickup'}`;
-
-        document.getElementById('orderForm').style.display = 'none';
-        document.getElementById('successScreen').style.display = 'block';
-      }
+      document.getElementById('orderForm').style.display = 'none';
+      document.getElementById('successScreen').style.display = 'block';
     })
     .catch(err => {
       console.error(err);
@@ -882,118 +857,7 @@ function submitOrder() {
     });
 }
 
-function showPaymentScreen(name, total) {
-  document.getElementById('orderForm').style.display = 'none';
-  document.getElementById('successScreen').style.display = 'none';
-  document.getElementById('paymentScreen').style.display = 'block';
-
-  document.getElementById('paymentAmount').textContent = `₱${total}`;
-  document.getElementById('gcashNumber').textContent = GCASH_NUMBER;
-  document.getElementById('gcashName').textContent = GCASH_NAME;
-  const qr = document.getElementById('gcashQr');
-  if (GCASH_QR_URL) { qr.src = GCASH_QR_URL; qr.style.display = ''; }
-  else { qr.style.display = 'none'; }
-
-  document.getElementById('gcashRefInput').value = '';
-  document.getElementById('errGcashRef').style.display = 'none';
-  document.getElementById('gcashRefInput').disabled = false;
-  document.getElementById('gcashSubmitBtn').style.display = '';
-  document.getElementById('gcashSubmitBtn').disabled = false;
-  document.getElementById('gcashSubmitBtn').textContent = "I've Sent the Payment";
-  const statusBox = document.getElementById('paymentStatusBox');
-  statusBox.style.display = 'none';
-  statusBox.innerHTML = '';
-}
-
-function submitGcashPayment() {
-  const ref = document.getElementById('gcashRefInput').value.trim();
-  const errEl = document.getElementById('errGcashRef');
-  errEl.style.display = ref ? 'none' : 'block';
-  if (!ref || !lastOrder) return;
-
-  const btn = document.getElementById('gcashSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Submitting...';
-
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'submitPayment', id: lastOrder.id, contact: lastOrder.contact, pin: lastOrder.pin, gcashRef: ref })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
-
-      document.getElementById('gcashRefInput').disabled = true;
-      btn.style.display = 'none';
-
-      const statusBox = document.getElementById('paymentStatusBox');
-      statusBox.style.display = 'block';
-      statusBox.style.background = 'rgba(231,200,119,0.12)';
-      statusBox.style.border = '1px solid #5C4326';
-      statusBox.style.color = '#E7C877';
-      statusBox.innerHTML = '⏳ Payment submitted — waiting for confirmation. This page will update automatically.';
-
-      startPaymentPolling();
-    })
-    .catch(err => {
-      errEl.textContent = err.message || 'Could not submit payment. Please try again.';
-      errEl.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = "I've Sent the Payment";
-    });
-}
-
-function startPaymentPolling() {
-  stopPaymentPolling();
-  paymentPollTimer = setInterval(checkPaymentStatus, 6000);
-  checkPaymentStatus();
-}
-
-function stopPaymentPolling() {
-  if (paymentPollTimer) { clearInterval(paymentPollTimer); paymentPollTimer = null; }
-}
-
-function checkPaymentStatus() {
-  if (!lastOrder) { stopPaymentPolling(); return; }
-
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'myOrders', contact: lastOrder.contact, pin: lastOrder.pin })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) return; // stay silent, keep polling - transient network hiccup
-      const order = data.orders.find(o => o.id === lastOrder.id);
-      if (!order) return;
-
-      const statusBox = document.getElementById('paymentStatusBox');
-
-      if (order.paymentStatus === 'Paid') {
-        stopPaymentPolling();
-        statusBox.style.background = 'rgba(91,207,138,0.15)';
-        statusBox.style.border = '1px solid #5BCF8A';
-        statusBox.style.color = '#5BCF8A';
-        statusBox.innerHTML = '✅ Payment confirmed! We\'re preparing your order.';
-      } else if (order.paymentStatus === 'Rejected') {
-        stopPaymentPolling();
-        statusBox.style.background = 'rgba(224,96,96,0.15)';
-        statusBox.style.border = '1px solid #e06060';
-        statusBox.style.color = '#e06060';
-        statusBox.innerHTML = '⚠️ We couldn\'t verify that reference number. Please check it and submit again below.';
-        document.getElementById('gcashRefInput').disabled = false;
-        document.getElementById('gcashSubmitBtn').style.display = '';
-        document.getElementById('gcashSubmitBtn').disabled = false;
-      }
-      // 'Pending Verification' / 'Unpaid' -> keep polling silently
-    })
-    .catch(() => { /* keep polling, don't interrupt the user with transient errors */ });
-}
-
 function resetForm() {
-  stopPaymentPolling();
-  lastOrder = null;
   MENU.forEach(m => qty[m.id] = 0);
   document.getElementById('custName').value = '';
   document.getElementById('custContact').value = '';
@@ -1001,11 +865,11 @@ function resetForm() {
   document.getElementById('custAddress').value = '';
   document.getElementById('custNote').value = '';
   setMode('delivery');
-  setPaymentMethod('cash');
+  initTimingDefault();
+  initSchedule();
   renderItems();
   document.getElementById('orderForm').style.display = '';
   document.getElementById('successScreen').style.display = 'none';
-  document.getElementById('paymentScreen').style.display = 'none';
 }
 
 function switchTab(tab) {
@@ -1015,7 +879,6 @@ function switchTab(tab) {
   const showOrder = tab === 'order';
   document.getElementById('orderForm').style.display = showOrder ? '' : 'none';
   document.getElementById('successScreen').style.display = 'none';
-  document.getElementById('paymentScreen').style.display = 'none';
   document.getElementById('myOrdersView').style.display = showOrder ? 'none' : '';
 }
 
@@ -1085,12 +948,6 @@ function renderMyOrders(orders) {
       ? `<div class="my-order-date" style="margin-top:2px;">⏰ ${o.scheduleLabel}</div>`
       : '';
 
-    const payColors = { 'Paid': '#5BCF8A', 'Pending Verification': '#E7C877', 'Unpaid': '#e06060', 'Rejected': '#e06060' };
-    const payColor = payColors[o.paymentStatus] || '#B79A6E';
-    const paymentHtml = (o.paymentMethod === 'gcash')
-      ? `<span style="color:${payColor};">📱 GCash — ${o.paymentStatus}</span>`
-      : `<span>💵 Cash</span>`;
-
     card.innerHTML = `
       <div class="my-order-header">
         <div>
@@ -1104,16 +961,148 @@ function renderMyOrders(orders) {
       <div class="my-order-footer">
         <span>${modeLabel}</span>
         <span class="my-order-total">₱${o.total}</span>
-      </div>
-      <div class="my-order-footer" style="border-top:none; padding-top:0; font-size:12px;">
-        ${paymentHtml}
       </div>`;
     listEl.appendChild(card);
   });
 }
 
+function loadScheduleOverrides() {
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'getScheduleOverrides' })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.ok && data.overrides) {
+        scheduleOverrides = data.overrides;
+        initTimingDefault();
+        initSchedule();
+        // Admin panel may have already rendered with stale (empty) overrides
+        // before this fetch resolved - re-render now that we have real data.
+        if (adminUnlocked) renderAdminSchedule();
+      }
+    })
+    .catch(() => { /* keep default Mon–Wed rule if backend isn't reachable */ });
+}
+
+let adminUnlocked = false;
+let adminKeyEntered = null;
+
+function initAdmin() {
+  const isAdminUrl = new URLSearchParams(location.search).get('admin') === '1';
+  if (!isAdminUrl) return;
+
+  const key = prompt('Enter admin passcode:');
+  if (key !== ADMIN_KEY) {
+    alert('Incorrect passcode.');
+    return;
+  }
+
+  adminUnlocked = true;
+  adminKeyEntered = key;
+
+  document.querySelector('.top-tabs').style.display = 'none';
+  document.getElementById('orderForm').style.display = 'none';
+  document.getElementById('myOrdersView').style.display = 'none';
+  document.getElementById('successScreen').style.display = 'none';
+  document.getElementById('adminView').style.display = '';
+
+  renderAdminSchedule();
+}
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function renderAdminSchedule() {
+  const list = document.getElementById('adminScheduleList');
+  list.innerHTML = '';
+
+  for (let offset = 0; offset < SCHEDULE_LOOKAHEAD_DAYS; offset++) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    const key = dateKey(d);
+    const isDefaultOpen = OPEN_WEEKDAYS.includes(d.getDay());
+    const override = scheduleOverrides[key]; // 'open' | 'closed' | undefined
+
+    const status = override || (isDefaultOpen ? 'default-open' : 'default-closed');
+
+    const row = document.createElement('div');
+    row.className = 'admin-day-row';
+
+    const info = document.createElement('div');
+    info.className = 'admin-day-info';
+    info.innerHTML = `<span class="admin-day-name">${WEEKDAY_NAMES[d.getDay()]}${offset === 0 ? ' (Today)' : ''}</span>
+      <span class="admin-day-date">${dateLabel(d)}${override ? '' : (isDefaultOpen ? ' · default open' : ' · default closed')}</span>`;
+
+    const btn = document.createElement('button');
+    btn.className = 'admin-status-btn ' + (
+      override === 'open' ? 'status-open' : override === 'closed' ? 'status-closed' : 'status-default'
+    );
+    btn.textContent = override === 'open' ? 'Open (forced)' : override === 'closed' ? 'Closed (forced)' : 'Default';
+    btn.onclick = () => cycleOverride(key, override);
+
+    row.appendChild(info);
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+function cycleOverride(key, currentOverride) {
+  // Cycle: default -> open -> closed -> default
+  const previous = currentOverride;
+  const next = currentOverride === undefined ? 'open' : currentOverride === 'open' ? 'closed' : undefined;
+
+  if (next === undefined) {
+    delete scheduleOverrides[key];
+  } else {
+    scheduleOverrides[key] = next;
+  }
+
+  renderAdminSchedule();
+  saveOverride(key, next, previous);
+}
+
+function saveOverride(dateKeyValue, status, previousStatus) {
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'setScheduleOverride',
+      adminKey: adminKeyEntered,
+      date: dateKeyValue,
+      status: status || 'default' // 'open' | 'closed' | 'default'
+    })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) {
+        // Save failed server-side (e.g. wrong admin key, backend not updated yet) -
+        // roll back the optimistic UI change so it doesn't lie about what's saved.
+        if (previousStatus === undefined) {
+          delete scheduleOverrides[dateKeyValue];
+        } else {
+          scheduleOverrides[dateKeyValue] = previousStatus;
+        }
+        renderAdminSchedule();
+        alert('Could not save: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(() => {
+      if (previousStatus === undefined) {
+        delete scheduleOverrides[dateKeyValue];
+      } else {
+        scheduleOverrides[dateKeyValue] = previousStatus;
+      }
+      renderAdminSchedule();
+      alert('Could not save to server. Check your internet connection and try again.');
+    });
+}
+
 renderItems();
+initTimingDefault();
 initSchedule();
+loadScheduleOverrides();
+initAdmin();
 </script>
 </body>
 </html>
