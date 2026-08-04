@@ -9,18 +9,29 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ===== THEME COLORS — change these to re-brand for a different client ===== */
+  :root {
+    --accent: #C9A24B;      /* gold accent - buttons, highlights, active states */
+    --bg-page: #1a1008;     /* page background (dark) */
+    --bg-card: #2B1610;     /* card/header background */
+    --bg-input: #3A2015;    /* input field background */
+    --text: #F3E7C9;        /* primary text */
+    --text-muted: #B79A6E;  /* secondary/muted text */
+    --border: #5C4326;      /* card/input borders */
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: #1a1008;
+    background: var(--bg-page);
     font-family: 'Inter', Helvetica, Arial, sans-serif;
     min-height: 100vh;
-    color: #F3E7C9;
+    color: var(--text);
   }
 
   header {
-    background: #2B1610;
-    border-bottom: 2px solid #C9A24B;
+    background: var(--bg-card);
+    border-bottom: 2px solid var(--accent);
     padding: 14px 24px;
     display: flex;
     align-items: center;
@@ -29,8 +40,8 @@
     gap: 10px;
   }
 
-  header .brand { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; color: #C9A24B; }
-  header .sub { font-size: 11px; color: #B79A6E; letter-spacing: 2px; text-transform: uppercase; }
+  header .brand { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; color: var(--accent); }
+  header .sub { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
 
   .header-actions {
     display: flex;
@@ -41,8 +52,8 @@
 
   .refresh-btn {
     background: transparent;
-    border: 1px solid #C9A24B;
-    color: #C9A24B;
+    border: 1px solid var(--accent);
+    color: var(--accent);
     padding: 8px 16px;
     border-radius: 6px;
     font-size: 13px;
@@ -60,8 +71,8 @@
   }
 
   .stat-card {
-    background: #2B1610;
-    border: 1px solid #5C4326;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px 18px;
     flex: 1;
@@ -72,14 +83,14 @@
     font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #B79A6E;
+    color: var(--text-muted);
     margin-bottom: 4px;
   }
 
   .stat-card .value {
     font-family: 'Playfair Display', Georgia, serif;
     font-size: 24px;
-    color: #C9A24B;
+    color: var(--accent);
     font-weight: bold;
   }
 
@@ -91,12 +102,118 @@
     align-items: center;
   }
 
+  .sales-report {
+    margin: 0 24px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  .sales-report-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .sales-report-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    color: var(--accent);
+    font-size: 16px;
+  }
+
+  .sales-report-datepick {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .sales-report-datepick input[type="date"] {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 13px;
+    padding: 6px 10px;
+    outline: none;
+    color-scheme: dark;
+  }
+
+  .sales-report-summary {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .sales-report-summary .mini-stat {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .sales-report-summary .mini-stat .label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+  }
+
+  .sales-report-summary .mini-stat .value {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 18px;
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  .sales-report-items table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .sales-report-items th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sales-report-items th:last-child,
+  .sales-report-items td:last-child { text-align: right; }
+
+  .sales-report-items td {
+    padding: 7px 8px;
+    color: var(--text);
+    border-bottom: 1px solid rgba(92,67,38,0.35);
+  }
+
+  .sales-report-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+    padding: 8px 0;
+  }
+
   .filter-btn {
     padding: 6px 14px;
     border-radius: 20px;
-    border: 1px solid #5C4326;
+    border: 1px solid var(--border);
     background: transparent;
-    color: #B79A6E;
+    color: var(--text-muted);
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
@@ -104,9 +221,9 @@
   }
 
   .filter-btn.active {
-    background: #C9A24B;
-    border-color: #C9A24B;
-    color: #2B1610;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-card);
     font-weight: bold;
   }
 
@@ -127,23 +244,23 @@
   .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
 
   .order-card {
-    background: #2B1610;
-    border: 1px solid #5C4326;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;
     transition: border-color 0.2s;
   }
 
-  .order-card:hover { border-color: #C9A24B; }
+  .order-card:hover { border-color: var(--accent); }
   .order-card.status-Delivered:hover,
   .order-card.status-Cancelled:hover { opacity: 0.9; }
 
   .order-card.status-Pending,
   .order-card.status-Preparing,
-  .order-card.status-Ready { border-left: 3px solid #C9A24B; }
+  .order-card.status-Ready { border-left: 3px solid var(--accent); }
 
   .order-card.status-Delivered {
-    border-left: 3px solid #5C4326;
+    border-left: 3px solid var(--border);
     opacity: 0.6;
   }
 
@@ -171,13 +288,13 @@
 
   .order-name {
     font-size: 17px;
-    color: #F3E7C9;
+    color: var(--text);
     font-weight: bold;
   }
 
   .order-meta {
     font-size: 12px;
-    color: #B79A6E;
+    color: var(--text-muted);
     margin-top: 3px;
   }
 
@@ -198,7 +315,7 @@
   .schedule-tag.no-schedule {
     color: #7a6040;
     background: transparent;
-    border: 1px dashed #5C4326;
+    border: 1px dashed var(--border);
     font-weight: 400;
     font-style: italic;
   }
@@ -211,7 +328,7 @@
   .order-total {
     font-family: 'Playfair Display', Georgia, serif;
     font-size: 20px;
-    color: #C9A24B;
+    color: var(--accent);
     font-weight: bold;
   }
 
@@ -239,7 +356,7 @@
   .badge-Cancelled { background: rgba(107,58,52,0.35); color: #c99790; }
 
   .order-items {
-    border-top: 1px solid #3A2015;
+    border-top: 1px solid var(--bg-input);
     padding: 10px 16px;
   }
 
@@ -251,10 +368,10 @@
     color: #c4a87a;
   }
 
-  .order-item-row .item-name { color: #F3E7C9; }
+  .order-item-row .item-name { color: var(--text); }
 
   .order-footer {
-    border-top: 1px solid #3A2015;
+    border-top: 1px solid var(--bg-input);
     padding: 10px 16px;
     display: flex;
     align-items: center;
@@ -265,14 +382,14 @@
 
   .mode-tag {
     font-size: 12px;
-    color: #B79A6E;
+    color: var(--text-muted);
   }
 
   .status-select {
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
     border-radius: 6px;
-    color: #F3E7C9;
+    color: var(--text);
     font-size: 13px;
     padding: 6px 10px;
     cursor: pointer;
@@ -280,12 +397,12 @@
     transition: border-color 0.2s;
   }
 
-  .status-select:focus { border-color: #C9A24B; }
-  .status-select option { background: #2B1610; }
+  .status-select:focus { border-color: var(--accent); }
+  .status-select option { background: var(--bg-card); }
 
   .delete-btn {
     background: transparent;
-    border: 1px solid #5C4326;
+    border: 1px solid var(--border);
     color: #8a6a4a;
     padding: 6px 10px;
     border-radius: 6px;
@@ -299,14 +416,14 @@
 
   .note-tag {
     font-size: 12px;
-    color: #B79A6E;
+    color: var(--text-muted);
     font-style: italic;
     padding: 0 16px 10px;
   }
 
   .clear-all-btn {
     background: transparent;
-    border: 1px solid #5C4326;
+    border: 1px solid var(--border);
     color: #8a6a4a;
     padding: 6px 14px;
     border-radius: 6px;
@@ -328,30 +445,30 @@
   }
 
   .login-card {
-    background: #2B1610;
-    border: 1px solid #5C4326;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 30px 26px;
     width: 100%;
     max-width: 340px;
   }
 
-  .login-card .brand { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; color: #C9A24B; }
-  .login-card .sub { font-size: 11px; color: #B79A6E; letter-spacing: 2px; text-transform: uppercase; }
+  .login-card .brand { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; color: var(--accent); }
+  .login-card .sub { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
 
   .login-card .field input {
     width: 100%;
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
     border-radius: 6px;
-    color: #F3E7C9;
+    color: var(--text);
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 16px;
     padding: 11px 14px;
     outline: none;
     transition: border-color 0.2s;
   }
-  .login-card .field input:focus { border-color: #C9A24B; }
+  .login-card .field input:focus { border-color: var(--accent); }
   .login-card .field input::placeholder { color: #7a6040; }
 
   .login-error {
@@ -374,8 +491,8 @@
   }
 
   .modal-card {
-    background: #2B1610;
-    border: 1px solid #C9A24B;
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
     border-radius: 10px;
     padding: 26px 24px;
     width: 100%;
@@ -386,7 +503,7 @@
 
   .modal-card h3 {
     font-family: 'Playfair Display', Georgia, serif;
-    color: #C9A24B;
+    color: var(--accent);
     font-size: 19px;
     margin-bottom: 16px;
     text-align: center;
@@ -396,17 +513,17 @@
 
   .modal-card .field input {
     width: 100%;
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
     border-radius: 6px;
-    color: #F3E7C9;
+    color: var(--text);
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 16px;
     padding: 11px 14px;
     outline: none;
     transition: border-color 0.2s;
   }
-  .modal-card .field input:focus { border-color: #C9A24B; }
+  .modal-card .field input:focus { border-color: var(--accent); }
   .modal-card .field input::placeholder { color: #7a6040; }
 
   .modal-error {
@@ -435,30 +552,30 @@
 
   .modal-cancel-btn {
     background: transparent;
-    border: 1px solid #5C4326;
-    color: #B79A6E;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
     padding: 12px;
     border-radius: 6px;
     font-family: 'Inter', Helvetica, sans-serif;
     font-size: 13px;
     cursor: pointer;
   }
-  .modal-cancel-btn:hover { border-color: #C9A24B; color: #C9A24B; }
+  .modal-cancel-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   .account-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #3A2015;
-    border: 1px solid #5C4326;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 14px;
     gap: 10px;
     flex-wrap: wrap;
   }
   .account-row .info { font-family: 'Inter', Helvetica, sans-serif; }
-  .account-row .info .uname { color: #F3E7C9; font-size: 14px; font-weight: bold; }
-  .account-row .info .role { color: #B79A6E; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .account-row .info .uname { color: var(--text); font-size: 14px; font-weight: bold; }
+  .account-row .info .role { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 
   /* ---- Mobile optimization ---- */
   @media (max-width: 640px) {
@@ -473,6 +590,9 @@
     .stats-bar { padding: 12px 14px; gap: 8px; }
     .stat-card { min-width: calc(50% - 4px); padding: 10px 14px; }
     .stat-card .value { font-size: 20px; }
+
+    .sales-report { margin: 0 14px 14px; padding: 14px; }
+    .sales-report-summary .mini-stat { min-width: calc(50% - 5px); }
 
     .filter-bar { padding: 0 14px 12px; }
     .filter-btn { padding: 7px 12px; }
@@ -492,7 +612,8 @@
 
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
-    <div class="brand" style="text-align:center; margin-bottom:2px;">Siomai D' 🍱</div>
+    <img id="logoLogin" src="" alt="" style="display:none; max-width:64px; max-height:64px; margin:0 auto 8px; border-radius:10px;">
+    <div class="brand" id="brandLogin" style="text-align:center; margin-bottom:2px;">Siomai D' 🍱</div>
     <div class="sub" style="text-align:center; margin-bottom:20px;">Admin Dashboard</div>
     <div class="field">
       <input type="text" id="loginUsername" placeholder="Username" autocomplete="username">
@@ -510,11 +631,12 @@
 
 <header>
   <div>
-    <div class="brand">Siomai D' 🍱</div>
+    <img id="logoHeader" src="" alt="" style="display:none; max-width:36px; max-height:36px; vertical-align:middle; margin-right:8px; border-radius:6px;">
+    <div class="brand" id="brandHeader">Siomai D' 🍱</div>
     <div class="sub">Admin Dashboard</div>
   </div>
   <div class="header-actions">
-    <span id="userTag" style="font-size:12px; color:#B79A6E;"></span>
+    <span id="userTag" style="font-size:12px; color:var(--text-muted);"></span>
     <span id="syncStatus" style="font-size:11px; color:#7a6040;"></span>
     <button class="refresh-btn" id="refreshBtn" onclick="loadOrders()">🔄 Refresh</button>
     <button class="refresh-btn" id="accountsBtn" onclick="openAccountsModal()">👥 Accounts</button>
@@ -579,6 +701,18 @@
   <div class="stat-card" id="statAvgCard"><div class="label">Avg Order</div><div class="value" id="statAvg">₱0</div></div>
 </div>
 
+<div class="sales-report" id="salesReportCard">
+  <div class="sales-report-header">
+    <div class="sales-report-title">📊 Sales Report</div>
+    <div class="sales-report-datepick">
+      <label for="salesReportDate">Date:</label>
+      <input type="date" id="salesReportDate" onchange="renderSalesReport()">
+    </div>
+  </div>
+  <div class="sales-report-summary" id="salesReportSummary"></div>
+  <div class="sales-report-items" id="salesReportItems"></div>
+</div>
+
 <div class="filter-bar">
   <span style="font-size:12px; color:#7a6040; margin-right:4px;">Filter:</span>
   <button class="filter-btn active" onclick="setFilter('All')">All</button>
@@ -596,7 +730,36 @@
 
 
 <script>
+/* ============================================================
+   SHOP CONFIG — edit these two lines for a new client.
+   Must match the SHOP_NAME styling you want; SCRIPT_URL must
+   match the same Apps Script deployment used in index.html.
+   ============================================================ */
+const SHOP_NAME = "Siomai D'";
+const SHOP_EMOJI = '🍱';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzB2IajsTUZ6-bWDQjJbu9KLyZ1KrGIj09O7pD7xmYqPFSBj_QhQ092J7thBTocSuo2/exec';
+
+// Same logo used on index.html — paste an image URL here, or leave '' for
+// text-only branding. Keep this in sync with SHOP_LOGO_URL in index.html.
+const SHOP_LOGO_URL = '';
+/* ============================================================
+   END SHOP CONFIG
+   ============================================================ */
+
+document.title = SHOP_NAME + ' — Admin Dashboard';
+document.getElementById('brandLogin').textContent = `${SHOP_NAME} ${SHOP_EMOJI}`;
+document.getElementById('brandHeader').textContent = `${SHOP_NAME} ${SHOP_EMOJI}`;
+if (SHOP_LOGO_URL) {
+  const logoLogin = document.getElementById('logoLogin');
+  logoLogin.src = SHOP_LOGO_URL;
+  logoLogin.alt = SHOP_NAME + ' logo';
+  logoLogin.style.display = 'block';
+
+  const logoHeader = document.getElementById('logoHeader');
+  logoHeader.src = SHOP_LOGO_URL;
+  logoHeader.alt = SHOP_NAME + ' logo';
+  logoHeader.style.display = 'inline-block';
+}
 
 let allOrders = [];
 let currentFilter = 'All';
@@ -690,6 +853,62 @@ function isToday(iso) {
   return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
 }
 
+function pad2_(n) { return n < 10 ? '0' + n : '' + n; }
+
+// yyyy-mm-dd using LOCAL date parts, matching what <input type="date"> gives us
+function localDateKey_(d) {
+  return d.getFullYear() + '-' + pad2_(d.getMonth() + 1) + '-' + pad2_(d.getDate());
+}
+
+function isOnDate(iso, dateStr) {
+  return localDateKey_(new Date(iso)) === dateStr;
+}
+
+function renderSalesReport() {
+  const dateInput = document.getElementById('salesReportDate');
+  if (!dateInput.value) dateInput.value = localDateKey_(new Date());
+  const dateStr = dateInput.value;
+
+  const dayOrders = allOrders.filter(o => isOnDate(o.date, dateStr));
+  const activeDayOrders = dayOrders.filter(o => o.status !== 'Cancelled');
+  const cancelledCount = dayOrders.length - activeDayOrders.length;
+
+  const sales = activeDayOrders.reduce((s, o) => s + o.total, 0);
+  const avg = activeDayOrders.length ? Math.round(sales / activeDayOrders.length) : 0;
+
+  const summaryEl = document.getElementById('salesReportSummary');
+  summaryEl.innerHTML = `
+    <div class="mini-stat"><div class="label">Orders</div><div class="value">${activeDayOrders.length}</div></div>
+    <div class="mini-stat"><div class="label">Sales</div><div class="value">₱${sales}</div></div>
+    <div class="mini-stat"><div class="label">Avg Order</div><div class="value">₱${avg}</div></div>
+    <div class="mini-stat"><div class="label">Cancelled</div><div class="value">${cancelledCount}</div></div>
+  `;
+
+  const itemsEl = document.getElementById('salesReportItems');
+  if (!activeDayOrders.length) {
+    itemsEl.innerHTML = '<div class="sales-report-empty">Walang orders sa araw na ito.</div>';
+    return;
+  }
+
+  const itemTotals = {}; // name -> { qty, revenue }
+  activeDayOrders.forEach(o => {
+    o.items.forEach(i => {
+      if (!itemTotals[i.name]) itemTotals[i.name] = { qty: 0, revenue: 0 };
+      itemTotals[i.name].qty += i.qty;
+      itemTotals[i.name].revenue += i.subtotal;
+    });
+  });
+
+  const rows = Object.entries(itemTotals).sort((a, b) => b[1].revenue - a[1].revenue);
+  itemsEl.innerHTML = `
+    <table>
+      <thead><tr><th>Item</th><th>Qty</th><th>Revenue</th></tr></thead>
+      <tbody>
+        ${rows.map(([name, t]) => `<tr><td>${name}</td><td>${t.qty}</td><td>₱${t.revenue}</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
 function setSyncStatus(text) {
   document.getElementById('syncStatus').textContent = text;
 }
@@ -708,6 +927,7 @@ function loadOrders() {
       allOrders = data.orders;
       updateStats();
       renderOrders();
+      renderSalesReport();
       const now = new Date();
       setSyncStatus('Synced ' + now.toLocaleTimeString('fil-PH', { hour:'2-digit', minute:'2-digit' }));
     })
