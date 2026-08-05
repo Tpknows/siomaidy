@@ -208,51 +208,6 @@
     padding: 8px 0;
   }
 
-  .wk-item-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 12px;
-    gap: 10px;
-  }
-
-  .wk-item-row .wk-item-info .name { font-size: 14px; color: var(--text); }
-  .wk-item-row .wk-item-info .price { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-
-  .wk-qty-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .wk-qty-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 1px solid var(--accent);
-    background: transparent;
-    color: var(--accent);
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .wk-qty-btn:hover { background: rgba(201,162,75,0.15); }
-
-  .wk-qty-num {
-    font-size: 14px;
-    font-weight: bold;
-    color: var(--text);
-    min-width: 18px;
-    text-align: center;
-  }
-
   .filter-btn {
     padding: 6px 14px;
     border-radius: 20px;
@@ -739,28 +694,6 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="walkinModal">
-  <div class="modal-card" style="max-width:420px;">
-    <h3>🧾 New Walk-in Order</h3>
-    <div class="field">
-      <input type="text" id="wkName" placeholder="Customer name (optional)">
-    </div>
-    <div id="wkItemsList" style="display:flex; flex-direction:column; gap:8px; margin:10px 0;"></div>
-    <div class="field">
-      <input type="text" id="wkNote" placeholder="Note (optional)">
-    </div>
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-top:1px solid var(--border); margin-top:6px;">
-      <span style="font-size:13px; color:var(--text-muted);">Total</span>
-      <span id="wkTotal" style="font-family:'Playfair Display',Georgia,serif; font-size:22px; color:var(--accent); font-weight:bold;">₱0</span>
-    </div>
-    <div class="modal-error" id="wkError"></div>
-    <div class="modal-actions">
-      <button class="modal-cancel-btn" onclick="closeWalkinModal()">Cancel</button>
-      <button class="refresh-btn" id="wkSubmitBtn" onclick="submitWalkinOrder()">Save Order</button>
-    </div>
-  </div>
-</div>
-
 <div class="stats-bar" id="statsBar">
   <div class="stat-card"><div class="label">Total Orders</div><div class="value" id="statTotal">0</div></div>
   <div class="stat-card"><div class="label">Pending</div><div class="value" id="statPending">0</div></div>
@@ -788,7 +721,7 @@
   <button class="filter-btn" onclick="setFilter('Ready')">Ready</button>
   <button class="filter-btn" onclick="setFilter('Delivered')">Delivered</button>
   <button class="filter-btn" onclick="setFilter('Cancelled')">Cancelled</button>
-  <button class="refresh-btn" onclick="openWalkinModal()">🧾 New Walk-in Order</button>
+  <a class="refresh-btn" href="walkin.html" target="_blank" style="text-decoration:none; display:inline-block;">🧾 New Walk-in Order</a>
   <button class="clear-all-btn" onclick="clearAll()">🗑 Clear All</button>
 </div>
 
@@ -810,15 +743,6 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzB2IajsTUZ6-bWDQjJb
 // Same logo used on index.html — paste an image URL here, or leave '' for
 // text-only branding. Keep this in sync with SHOP_LOGO_URL in index.html.
 const SHOP_LOGO_URL = '';
-
-// Same menu as index.html — used for the "New Walk-in Order" form.
-// Keep this in sync with MENU in index.html.
-const MENU = [
-  { id: 'pork', name: 'Pork Siomai', note: 'per piece', price: 11 },
-  { id: 'chicken', name: 'Chicken Siomai', note: 'per piece', price: 11 },
-  { id: 'japanese', name: 'Japanese Siomai', note: 'per piece', price: 13 },
-  { id: 'rice', name: 'Plain Rice', note: 'per order', price: 15 },
-];
 /* ============================================================
    END SHOP CONFIG
    ============================================================ */
@@ -1166,107 +1090,6 @@ function clearAll() {
     .catch(err => {
       console.error(err);
       alert('Hindi na-clear. Subukan ulit.');
-    });
-}
-
-let wkQty = {};
-
-function openWalkinModal() {
-  wkQty = {};
-  MENU.forEach(m => wkQty[m.id] = 0);
-  document.getElementById('wkName').value = '';
-  document.getElementById('wkNote').value = '';
-  document.getElementById('wkError').textContent = '';
-  renderWkItems();
-  document.getElementById('walkinModal').style.display = 'flex';
-}
-
-function closeWalkinModal() {
-  document.getElementById('walkinModal').style.display = 'none';
-}
-
-function renderWkItems() {
-  const list = document.getElementById('wkItemsList');
-  list.innerHTML = '';
-  MENU.forEach(item => {
-    const row = document.createElement('div');
-    row.className = 'wk-item-row';
-    row.innerHTML = `
-      <div class="wk-item-info">
-        <div class="name">${item.name}</div>
-        <div class="price">₱${item.price} ${item.note}</div>
-      </div>
-      <div class="wk-qty-control">
-        <button class="wk-qty-btn" onclick="wkChangeQty('${item.id}',-1)">−</button>
-        <span class="wk-qty-num" id="wkqty_${item.id}">${wkQty[item.id]}</span>
-        <button class="wk-qty-btn" onclick="wkChangeQty('${item.id}',1)">+</button>
-      </div>`;
-    list.appendChild(row);
-  });
-  updateWkTotal();
-}
-
-function wkChangeQty(id, delta) {
-  wkQty[id] = Math.max(0, wkQty[id] + delta);
-  document.getElementById('wkqty_' + id).textContent = wkQty[id];
-  updateWkTotal();
-}
-
-function updateWkTotal() {
-  const total = MENU.reduce((s, m) => s + m.price * wkQty[m.id], 0);
-  document.getElementById('wkTotal').textContent = '₱' + total;
-}
-
-function submitWalkinOrder() {
-  const errEl = document.getElementById('wkError');
-  errEl.textContent = '';
-
-  const items = MENU.filter(m => wkQty[m.id] > 0).map(m => ({
-    id: m.id, name: m.name, price: m.price, qty: wkQty[m.id], subtotal: m.price * wkQty[m.id]
-  }));
-
-  if (!items.length) {
-    errEl.textContent = 'Pumili ng kahit isang item.';
-    return;
-  }
-
-  const name = document.getElementById('wkName').value.trim() || 'Walk-in Customer';
-  const note = document.getElementById('wkNote').value.trim();
-  const total = items.reduce((s, i) => s + i.subtotal, 0);
-
-  const btn = document.getElementById('wkSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Sinesave...';
-
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action: 'create',
-      username: currentUser.username,
-      role: currentUser.role,
-      order: {
-        name: name,
-        mode: 'walkin',
-        note: note,
-        items: items,
-        total: total,
-        status: 'Delivered' // walk-in sale is already completed at the counter
-      }
-    })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
-      closeWalkinModal();
-      loadOrders();
-    })
-    .catch(err => {
-      errEl.textContent = err.message || 'Hindi na-save. Subukan ulit.';
-    })
-    .finally(() => {
-      btn.disabled = false;
-      btn.textContent = 'Save Order';
     });
 }
 
