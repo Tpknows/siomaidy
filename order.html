@@ -323,6 +323,37 @@
     display: none;
   }
 
+  .cust-status-msg {
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 10px 13px;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .cust-status-msg.welcome {
+    display: block;
+    background: rgba(76,175,90,0.1);
+    border: 1px solid rgba(76,175,90,0.35);
+    color: #2f7a3c;
+  }
+
+  .cust-status-msg.newcustomer {
+    display: block;
+    background: rgba(201,162,75,0.12);
+    border: 1px solid rgba(201,162,75,0.4);
+    color: var(--dark);
+  }
+
+  .cust-status-msg.checking {
+    display: block;
+    background: #F3ECE0;
+    border: 1px solid #D4B896;
+    color: var(--muted);
+  }
+
   .note-input {
     width: 100%;
     background: #FFFFFF;
@@ -462,14 +493,16 @@
 
   <div class="section-label">Your Info</div>
   <div class="field">
-    <input type="text" id="custName" placeholder="Your name" maxlength="60">
-    <div class="error-msg" id="errName">Please enter your name.</div>
+    <input type="text" id="custContact" placeholder="Contact number" maxlength="20" inputmode="tel" onblur="checkCustomerStatus()">
+    <div class="error-msg" id="errContact">Please enter your contact number.</div>
   </div>
+
+  <div id="custStatusMsg" class="cust-status-msg"></div>
 
   <div style="height:10px"></div>
   <div class="field">
-    <input type="text" id="custContact" placeholder="Contact number" maxlength="20">
-    <div class="error-msg" id="errContact">Please enter your contact number.</div>
+    <input type="text" id="custName" placeholder="Your name" maxlength="60">
+    <div class="error-msg" id="errName">Please enter your name.</div>
   </div>
 
   <div style="height:10px"></div>
@@ -837,6 +870,57 @@ function updateSummary() {
   box.innerHTML = html;
 }
 
+let lastCheckedContact = '';
+let isReturningCustomer = false;
+
+function checkCustomerStatus() {
+  const contact = document.getElementById('custContact').value.trim();
+  const statusEl = document.getElementById('custStatusMsg');
+  const pinInput = document.getElementById('custPin');
+
+  // Need at least a plausible PH mobile number length before bothering to check
+  const digits = contact.replace(/\D/g, '');
+  if (digits.length < 10) {
+    statusEl.className = 'cust-status-msg';
+    statusEl.textContent = '';
+    return;
+  }
+
+  if (contact === lastCheckedContact) return; // avoid repeat calls for the same number
+  lastCheckedContact = contact;
+
+  statusEl.className = 'cust-status-msg checking';
+  statusEl.textContent = 'Checking...';
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'checkCustomer', contact })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.ok) { statusEl.className = 'cust-status-msg'; statusEl.textContent = ''; return; }
+
+      if (data.exists) {
+        isReturningCustomer = true;
+        statusEl.className = 'cust-status-msg welcome';
+        statusEl.textContent = `👋 Welcome back, ${data.name}! Enter your PIN below to continue.`;
+        const nameField = document.getElementById('custName');
+        if (!nameField.value.trim()) nameField.value = data.name;
+        pinInput.placeholder = 'Enter your 4-digit PIN';
+      } else {
+        isReturningCustomer = false;
+        statusEl.className = 'cust-status-msg newcustomer';
+        statusEl.textContent = "🆕 New here? Fill in your name and create a 4-digit PIN to set up your account — you'll use the same number + PIN for future orders and to check your order history.";
+        pinInput.placeholder = 'Create 4-Digit PIN — To Access Order & History';
+      }
+    })
+    .catch(() => {
+      statusEl.className = 'cust-status-msg';
+      statusEl.textContent = '';
+    });
+}
+
 function submitOrder() {
   let valid = true;
 
@@ -946,6 +1030,11 @@ function resetForm() {
   document.getElementById('custPin').value = '';
   document.getElementById('custAddress').value = '';
   document.getElementById('custNote').value = '';
+  lastCheckedContact = '';
+  isReturningCustomer = false;
+  const statusEl = document.getElementById('custStatusMsg');
+  statusEl.className = 'cust-status-msg';
+  statusEl.textContent = '';
   setMode('delivery');
   initTimingDefault();
   initSchedule();
