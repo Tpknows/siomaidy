@@ -1,20 +1,21 @@
-<!-- Last updated: 2026-07-23 | TP | Change: order dates now default to Monday–Wednesday only (advance orders up to 14 days ahead, Thu–Sun closed by default). Added an admin panel (index.html?admin=1) to force specific dates open or closed, overriding the default. Requires backend support for 'getScheduleOverrides' and 'setScheduleOverride' actions — see accompanying Apps Script notes. Added a Same Day / Advance Booking toggle: Same Day only offers "Today" (if open and slots remain), Advance Booking offers offset 1–14 days ahead. Defaults to whichever is actually available. 'orderTiming' is now included in the submitted order payload. -->
+<!-- Home / landing page. The actual order form now lives at order.html and
+     opens in a new tab from the "Order Now" button below, so the root URL
+     can serve as a simple front door instead of jumping straight to the form. -->
 <!DOCTYPE html>
 <html lang="fil">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siomai D' — Order</title>
+<title>Siomai D'</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* ===== THEME COLORS — change these to re-brand for a different client ===== */
   :root {
-    --accent: #C9A24B;   /* gold accent - buttons, highlights, active states */
-    --dark: #2B1610;     /* dark maroon - header bg, headings text */
-    --bg: #FDF8F0;       /* page background */
-    --muted: #7A5C3A;    /* muted secondary text */
+    --accent: #C9A24B;
+    --dark: #2B1610;
+    --bg: #FDF8F0;
+    --muted: #7A5C3A;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,1257 +23,136 @@
   body {
     background: var(--bg);
     font-family: 'Inter', Helvetica, Arial, sans-serif;
+    color: var(--dark);
     min-height: 100vh;
-    color: var(--dark);
-  }
-
-  header {
-    background: var(--dark);
-    border-bottom: 2px solid var(--accent);
-    padding: 18px 20px;
-    text-align: center;
-  }
-
-  header h1 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: 28px;
-    color: var(--accent);
-    letter-spacing: 1px;
-  }
-
-  header p {
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 11px;
-    color: #B79A6E;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-top: 2px;
-  }
-
-  .container {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 24px 16px 80px;
-  }
-
-  .section-label {
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 11px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: #8A5C2A;
-    margin-bottom: 10px;
-    margin-top: 28px;
-  }
-
-  .field input, .field select {
-    width: 100%;
-    background: #FFFFFF;
-    border: 1px solid #D4B896;
-    border-radius: 6px;
-    color: var(--dark);
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 15px;
-    padding: 12px 14px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .field input:focus, .field select:focus {
-    border-color: var(--accent);
-  }
-
-  .field input::placeholder { color: #B09070; }
-
-  .field select option { background: #FFFFFF; color: var(--dark); }
-
-  .toggle-row {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 4px;
-  }
-
-  .toggle-btn {
-    flex: 1;
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid #D4B896;
-    background: #EDE0CC;
-    color: var(--muted);
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-  }
-
-  .toggle-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--dark);
-    font-weight: bold;
-  }
-
-  .admin-day-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid #D4B896;
-    border-radius: 6px;
-    background: #FFFFFF;
-    margin-bottom: 8px;
-  }
-
-  .admin-day-info { display: flex; flex-direction: column; }
-  .admin-day-name { font-size: 14px; color: var(--dark); font-weight: 600; }
-  .admin-day-date { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
-
-  .admin-status-btn {
-    padding: 8px 14px;
-    border-radius: 6px;
-    border: 1px solid #5C4326;
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 12.5px;
-    cursor: pointer;
-    font-weight: 600;
-    min-width: 92px;
-    text-align: center;
-  }
-
-  .admin-status-btn.status-open { background: #2f5233; border-color: #4a8f52; color: #b7e6bd; }
-  .admin-status-btn.status-closed { background: #5a2323; border-color: #8f4a4a; color: #e6b7b7; }
-  .admin-status-btn.status-default { background: #EDE0CC; border-color: #D4B896; color: var(--muted); }
-
-  .items-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .menu-item-card {
-    background: #FFFFFF;
-    border: 1px solid #D4B896;
-    border-radius: 8px;
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .menu-item-card.out-of-stock {
-    opacity: 0.55;
-    background: #F3ECE0;
-  }
-
-  .out-of-stock-badge {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-    color: #8f4a4a;
-    background: rgba(224,96,96,0.12);
-    border: 1px solid rgba(143,74,74,0.3);
-    border-radius: 20px;
-    padding: 2px 9px;
-    margin-top: 3px;
-  }
-
-  .qty-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-  .qty-btn:disabled:hover { background: transparent; }
-
-  .menu-item-card .info .name {
-    font-size: 15px;
-    color: var(--dark);
-  }
-
-  .menu-item-card .info .price {
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 13px;
-    color: var(--accent);
-    margin-top: 2px;
-  }
-
-  .qty-control {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-  }
-
-  .qty-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 1px solid var(--accent);
-    background: transparent;
-    color: var(--accent);
-    font-size: 18px;
-    line-height: 1;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    padding: 24px;
   }
 
-  .qty-btn:hover { background: rgba(201,162,75,0.2); }
-
-  .qty-num {
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 16px;
-    font-weight: bold;
-    color: var(--dark);
-    min-width: 20px;
-    text-align: center;
-  }
-
-  .order-summary {
-    background: #FFF8EC;
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 16px;
-    margin-top: 10px;
-  }
-
-  .summary-row {
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 13px;
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    color: var(--muted);
-  }
-
-  .summary-row.total {
-    font-size: 18px;
-    font-weight: bold;
-    color: var(--accent);
-    border-top: 1px solid #D4B896;
-    margin-top: 8px;
-    padding-top: 10px;
-    font-family: 'Playfair Display', Georgia, serif;
-  }
-
-  .submit-btn {
+  .hero {
+    max-width: 420px;
     width: 100%;
-    background: var(--accent);
-    color: var(--dark);
-    border: none;
-    border-radius: 8px;
-    padding: 16px;
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: 17px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 16px;
-    letter-spacing: 0.5px;
-    transition: background 0.2s;
-  }
-
-  .submit-btn:hover { background: #dbb45c; }
-  .submit-btn:disabled { background: #D4B896; color: #A08060; cursor: not-allowed; }
-
-  .success-screen {
-    display: none;
     text-align: center;
-    padding: 60px 20px;
   }
 
-  .success-screen .check {
-    font-size: 60px;
-    margin-bottom: 16px;
+  .logo {
+    max-width: 96px;
+    max-height: 96px;
+    margin: 0 auto 18px;
+    border-radius: 14px;
+    display: none;
   }
 
-  .success-screen h2 {
+  .shop-name {
     font-family: 'Playfair Display', Georgia, serif;
-    color: var(--accent);
-    font-size: 26px;
-    margin-bottom: 8px;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--dark);
+    letter-spacing: 0.3px;
   }
 
-  .success-screen p {
-    font-family: 'Inter', Helvetica, sans-serif;
-    color: #B79A6E;
+  .shop-tagline {
     font-size: 14px;
-    margin-bottom: 4px;
-  }
-
-  .order-again-btn {
-    margin-top: 28px;
-    background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 12px 28px;
-    border-radius: 6px;
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 14px;
-    cursor: pointer;
-  }
-
-  .error-msg {
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 12px;
-    color: #e06060;
+    color: var(--muted);
     margin-top: 6px;
-    display: none;
+    letter-spacing: 0.3px;
   }
 
-  .note-input {
-    width: 100%;
-    background: #FFFFFF;
-    border: 1px solid #D4B896;
-    border-radius: 6px;
-    color: var(--dark);
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 14px;
-    padding: 11px 14px;
-    outline: none;
-    resize: none;
-    height: 70px;
-    transition: border-color 0.2s;
-  }
-  .note-input:focus { border-color: var(--accent); }
-  .note-input::placeholder { color: #B09070; }
-
-  .top-tabs {
-    display: flex;
-    gap: 8px;
-    max-width: 480px;
-    margin: 16px auto 0;
-    padding: 0 16px;
-  }
-
-  .tab-btn {
-    flex: 1;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #D4B896;
-    background: #EDE0CC;
-    color: var(--muted);
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-  }
-
-  .tab-btn.active {
+  .divider {
+    width: 40px;
+    height: 2px;
     background: var(--accent);
-    border-color: var(--accent);
-    color: var(--dark);
-    font-weight: bold;
+    margin: 22px auto;
   }
 
-  .my-order-card {
-    background: #FFFFFF;
-    border: 1px solid #D4B896;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .my-order-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 14px 16px 10px;
-    gap: 10px;
-  }
-
-  .my-order-id {
-    font-size: 11px;
-    color: #B09070;
-    letter-spacing: 1px;
-  }
-
-  .my-order-date {
-    font-size: 12px;
+  .hours {
+    font-size: 13px;
     color: var(--muted);
-    margin-top: 3px;
+    line-height: 1.7;
+    margin-bottom: 30px;
   }
 
-  .my-order-badge {
+  .hours strong { color: var(--dark); }
+
+  .order-btn {
     display: inline-block;
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-  }
-
-  .badge-Pending    { background: rgba(231,200,119,0.15); color: #E7C877; }
-  .badge-Preparing  { background: rgba(91,164,224,0.15); color: #5BA4E0; }
-  .badge-Ready      { background: rgba(91,207,138,0.15); color: #5BCF8A; }
-  .badge-Delivered  { background: rgba(138,138,138,0.15); color: #aaa; }
-  .badge-Cancelled  { background: rgba(224,96,96,0.15); color: #e06060; }
-
-  .my-order-items {
-    border-top: 1px solid #EDE0CC;
-    padding: 10px 16px;
-  }
-
-  .my-order-item-row {
-    display: flex;
-    justify-content: space-between;
+    background: var(--dark);
+    color: var(--bg);
     font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 13px;
-    padding: 3px 0;
-    color: #5A3A1A;
-  }
-
-  .my-order-footer {
-    border-top: 1px solid #EDE0CC;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-family: 'Inter', Helvetica, sans-serif;
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .my-order-total {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
     font-size: 16px;
-    font-weight: bold;
-    color: var(--accent);
+    text-decoration: none;
+    padding: 16px 40px;
+    border-radius: 999px;
+    border: 2px solid var(--dark);
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .order-btn:hover {
+    background: transparent;
+    color: var(--dark);
+  }
+
+  .order-btn .arrow {
+    display: inline-block;
+    margin-left: 8px;
+    transition: transform 0.2s;
+  }
+
+  .order-btn:hover .arrow { transform: translateX(3px); }
+
+  .footnote {
+    margin-top: 22px;
+    font-size: 11px;
+    color: var(--muted);
+    opacity: 0.7;
   }
 </style>
 </head>
 <body>
 
-<header>
-  <img id="shopLogo" src="" alt="" style="display:none; max-width:76px; max-height:76px; margin-bottom:8px; border-radius:10px;">
-  <h1 id="shopNameHeading">Siomai D'</h1>
-  <p id="shopTagline">Meaning of being hungry</p>
-</header>
+<div class="hero">
+  <img class="logo" id="shopLogo" src="" alt="">
+  <div class="shop-name" id="shopNameHeading">Siomai D'</div>
+  <div class="shop-tagline" id="shopTagline">Meaning of being hungry</div>
 
-<div class="top-tabs">
-  <div class="tab-btn active" id="tabOrder" onclick="switchTab('order')">🍱 Mag-order</div>
-  <div class="tab-btn" id="tabHistory" onclick="switchTab('history')">📋 My Orders</div>
-</div>
+  <div class="divider"></div>
 
-<div class="container" id="orderForm">
-
-  <div class="section-label">Your Info</div>
-  <div class="field">
-    <input type="text" id="custName" placeholder="Your name" maxlength="60">
-    <div class="error-msg" id="errName">Please enter your name.</div>
+  <div class="hours" id="hoursText">
+    Open <strong>Mon–Wed</strong>, 12:00 PM – 9:00 PM<br>
+    Delivery &amp; Pickup available
   </div>
 
-  <div style="height:10px"></div>
-  <div class="field">
-    <input type="text" id="custContact" placeholder="Contact number" maxlength="20">
-    <div class="error-msg" id="errContact">Please enter your contact number.</div>
-  </div>
+  <a class="order-btn" id="orderBtn" href="order.html" target="_blank" rel="noopener">
+    Order Now <span class="arrow">→</span>
+  </a>
 
-  <div style="height:10px"></div>
-  <div class="field">
-    <input type="text" id="custPin" placeholder="Create 4-Digit PIN — To Access Order & History" maxlength="4" inputmode="numeric">
-    <div class="error-msg" id="errPin">A 4-digit PIN is required.</div>
-  </div>
-
-  <div class="section-label">Delivery or Pickup?</div>
-  <div class="toggle-row">
-    <div class="toggle-btn active" id="btnDelivery" onclick="setMode('delivery')">🛵 Delivery</div>
-    <div class="toggle-btn" id="btnPickup" onclick="setMode('pickup')">🏃 Pickup</div>
-  </div>
-
-  <div id="addressField" style="margin-top:10px;">
-    <div class="field">
-      <input type="text" id="custAddress" placeholder="Delivery address" maxlength="120">
-      <div class="error-msg" id="errAddress">Please enter your delivery address.</div>
-    </div>
-  </div>
-
-  <div id="deliveryNote" style="display:none; margin-top:10px; font-size:12.5px; color:#B79A6E; background:#3A2015; border:1px solid #5C4326; border-radius:6px; padding:10px 12px; line-height:1.5;">
-    ℹ️ This is not a rush order — please allow time for your delivery update.
-  </div>
-
-  <div class="section-label">Choose Your Date & Time</div>
-  <div class="toggle-row">
-    <div class="toggle-btn active" id="btnSameDay" onclick="setTiming('sameday')">⚡ Same Day</div>
-    <div class="toggle-btn" id="btnAdvance" onclick="setTiming('advance')">📅 Advance Booking</div>
-  </div>
-  <div class="field" style="display:flex; gap:10px; margin-top:10px;">
-    <select id="schedDate" onchange="onScheduleChange()" style="flex:1;"></select>
-    <select id="schedTime" onchange="onScheduleChange()" style="flex:1;"></select>
-  </div>
-  <div class="error-msg" id="errSchedule">Please select a valid time — 12:00 PM to 9:00 PM, at least 30 minutes from now.</div>
-
-  <div class="section-label">Your Order</div>
-  <div class="items-list" id="itemsList"></div>
-  <div class="error-msg" id="errItems" style="display:none; margin-top:6px;">Please select at least one item.</div>
-
-  <div class="section-label">Notes (optional)</div>
-  <textarea class="note-input" id="custNote" placeholder="e.g. extra sauce, less spicy…"></textarea>
-
-  <div class="section-label">Order Summary</div>
-  <div class="order-summary" id="summaryBox">
-    <div class="summary-row" style="color:#B09070; font-style:italic;">No items selected yet.</div>
-  </div>
-
-  <button class="submit-btn" id="submitBtn" onclick="submitOrder()">Place Order</button>
-
-</div>
-
-<div class="container success-screen" id="successScreen">
-  <div class="check">✅</div>
-  <h2>Order Placed!</h2>
-  <p id="successName"></p>
-  <p id="successMode"></p>
-  <p style="margin-top:12px; color:#8A5C2A; font-size:16px;" id="successTotal"></p>
-  <button class="order-again-btn" onclick="resetForm()">Place Another Order</button>
-</div>
-
-<div class="container" id="myOrdersView" style="display:none;">
-  <div class="section-label" style="margin-top:0;">View Your Order</div>
-  <div class="field">
-    <input type="text" id="lookupContact" placeholder="Contact number" maxlength="20">
-  </div>
-  <div style="height:10px"></div>
-  <div class="field">
-    <input type="text" id="lookupPin" placeholder="4-digit PIN" maxlength="4" inputmode="numeric">
-  </div>
-  <div class="error-msg" id="lookupError" style="display:none; margin-top:6px;"></div>
-  <button class="submit-btn" onclick="lookupMyOrders()" id="lookupBtn">View Orders</button>
-  <div id="myOrdersList" style="margin-top:20px; display:flex; flex-direction:column; gap:12px;"></div>
-</div>
-
-<div class="container" id="adminView" style="display:none;">
-  <div class="section-label" style="margin-top:0;">Manage Open / Closed Dates</div>
-  <p style="font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.5;">
-    Default: open Mon–Wed, closed Thu–Sun. Tap a date to override it. Tap again to cycle: Default → Open → Closed.
-  </p>
-  <div id="adminScheduleList"></div>
-
-  <div class="section-label">Manage Stock</div>
-  <p style="font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.5;">
-    Tap an item to toggle it Out of Stock. Customers won't be able to order it while it's marked out.
-  </p>
-  <div id="adminStockList"></div>
+  <div class="footnote">Opens in a new tab</div>
 </div>
 
 <script>
 /* ============================================================
-   SHOP CONFIG — edit everything in this block for a new client.
-   Nothing below this block should need to change per client.
+   SHOP CONFIG — keep in sync with order.html / admin.html.
    ============================================================ */
 const SHOP_NAME = "Siomai D'";
 const SHOP_TAGLINE = 'Meaning of being hungry';
-
-// Paste an image URL here to show a logo above the shop name (e.g. an
-// uploaded image link, Imgur link, or a shared Google Drive image link
-// converted to direct-view format). Leave as '' for text-only branding.
-const SHOP_LOGO_URL = '';
-
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzB2IajsTUZ6-bWDQjJbu9KLyZ1KrGIj09O7pD7xmYqPFSBj_QhQ092J7thBTocSuo2/exec';
-
-// Change this to your own passcode. Access the panel via index.html?admin=1
-// Must match SCHEDULE_ADMIN_KEY in Code.gs (the Apps Script backend).
-const ADMIN_KEY = 'siomai2026';
-
-const MENU = [
-  { id: 'pork', name: 'Pork Siomai', note: 'per piece', price: 11 },
-  { id: 'chicken', name: 'Chicken Siomai', note: 'per piece', price: 11 },
-  { id: 'japanese', name: 'Japanese Siomai', note: 'per piece', price: 13 },
-  { id: 'rice', name: 'Plain Rice', note: 'per order', price: 15 },
-];
-
-// Business rules for scheduled pickup/delivery time
-const BUSINESS_OPEN_MIN = 12 * 60;   // 12:00 PM
-const BUSINESS_CLOSE_MIN = 21 * 60;  // 9:00 PM
-const LEAD_TIME_MIN = 30;            // minimum 30 mins from now
-const SLOT_STEP_MIN = 30;
-
-// Which days are open by default (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat)
-// Default: Monday–Wednesday only. Admin can override specific dates via the admin panel.
-const OPEN_WEEKDAYS = [1, 2, 3];
-const SCHEDULE_LOOKAHEAD_DAYS = 14; // how many days ahead the date picker shows
+const SHOP_LOGO_URL = ''; // paste an image URL here, or leave '' for text-only
 /* ============================================================
    END SHOP CONFIG
    ============================================================ */
 
-// Apply shop name/tagline to the page (so branding only needs to change above)
-document.title = SHOP_NAME + ' — Order';
+document.title = SHOP_NAME;
 document.getElementById('shopNameHeading').textContent = SHOP_NAME;
 document.getElementById('shopTagline').textContent = SHOP_TAGLINE;
+
 if (SHOP_LOGO_URL) {
   const logoEl = document.getElementById('shopLogo');
   logoEl.src = SHOP_LOGO_URL;
   logoEl.alt = SHOP_NAME + ' logo';
   logoEl.style.display = 'inline-block';
 }
-
-const qty = {};
-MENU.forEach(m => qty[m.id] = 0);
-
-let mode = 'delivery';
-let orderTiming = 'sameday'; // 'sameday' | 'advance'
-
-// Filled in from the backend on page load: { 'YYYY-MM-DD': 'open' | 'closed' }
-let scheduleOverrides = {};
-
-// Whether a given date is open for ordering, taking admin overrides into account.
-function isDateOpen(d) {
-  const key = dateKey(d);
-  if (scheduleOverrides[key] === 'open') return true;
-  if (scheduleOverrides[key] === 'closed') return false;
-  return OPEN_WEEKDAYS.includes(d.getDay());
-}
-
-function pad2(n) { return String(n).padStart(2, '0'); }
-
-function minutesToLabel(mins) {
-  let h = Math.floor(mins / 60);
-  const m = mins % 60;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12;
-  if (h === 0) h = 12;
-  return `${h}:${pad2(m)} ${ampm}`;
-}
-
-function minutesTo24h(mins) {
-  return `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}`;
-}
-
-function dateLabel(d) {
-  return d.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function dateKey(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-// Returns list of valid slot-start minutes (multiples of SLOT_STEP_MIN within business hours)
-// for "today", respecting the 30-min lead time from right now.
-function todaySlots() {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const earliest = nowMin + LEAD_TIME_MIN;
-  let start = Math.max(BUSINESS_OPEN_MIN, Math.ceil(earliest / SLOT_STEP_MIN) * SLOT_STEP_MIN);
-  const slots = [];
-  for (let t = start; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
-  return slots;
-}
-
-function fullDaySlots() {
-  const slots = [];
-  for (let t = BUSINESS_OPEN_MIN; t <= BUSINESS_CLOSE_MIN; t += SLOT_STEP_MIN) slots.push(t);
-  return slots;
-}
-
-function scheduleDateLabel(offset, d) {
-  if (offset === 0) return `Today — ${dateLabel(d)}`;
-  if (offset === 1) return `Tomorrow — ${dateLabel(d)}`;
-  return dateLabel(d);
-}
-
-function initSchedule() {
-  const dateSel = document.getElementById('schedDate');
-  dateSel.innerHTML = '';
-
-  // Same Day: only "today" (offset 0). Advance Booking: everything after today.
-  const minOffset = orderTiming === 'sameday' ? 0 : 1;
-  const maxOffset = orderTiming === 'sameday' ? 0 : SCHEDULE_LOOKAHEAD_DAYS;
-
-  for (let offset = minOffset; offset <= maxOffset; offset++) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-
-    if (!isDateOpen(d)) continue;
-    if (offset === 0 && todaySlots().length === 0) continue; // no slots left today
-
-    const opt = document.createElement('option');
-    opt.value = String(offset);
-    opt.textContent = scheduleDateLabel(offset, d);
-    dateSel.appendChild(opt);
-  }
-
-  if (!dateSel.options.length) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = orderTiming === 'sameday'
-      ? 'Not available today — try Advance Booking'
-      : 'No available dates — please check back later';
-    dateSel.appendChild(opt);
-  }
-
-  populateTimeSlots();
-}
-
-// Switches between Same Day and Advance Booking date lists.
-function setTiming(t) {
-  orderTiming = t;
-  document.getElementById('btnSameDay').classList.toggle('active', t === 'sameday');
-  document.getElementById('btnAdvance').classList.toggle('active', t === 'advance');
-  initSchedule();
-}
-
-// Picks a sensible default when the page loads / overrides refresh:
-// Same Day if today is open and still has slots, otherwise Advance Booking.
-function initTimingDefault() {
-  const d = new Date();
-  const sameDayAvailable = isDateOpen(d) && todaySlots().length > 0;
-  orderTiming = sameDayAvailable ? 'sameday' : 'advance';
-  document.getElementById('btnSameDay').classList.toggle('active', orderTiming === 'sameday');
-  document.getElementById('btnAdvance').classList.toggle('active', orderTiming === 'advance');
-}
-
-function populateTimeSlots() {
-  const dateSel = document.getElementById('schedDate');
-  const timeSel = document.getElementById('schedTime');
-  const offset = parseInt(dateSel.value, 10);
-
-  timeSel.innerHTML = '';
-  if (isNaN(offset)) return;
-
-  const slots = offset === 0 ? todaySlots() : fullDaySlots();
-  slots.forEach(mins => {
-    const opt = document.createElement('option');
-    opt.value = String(mins);
-    opt.textContent = minutesToLabel(mins);
-    timeSel.appendChild(opt);
-  });
-}
-
-function onScheduleChange() {
-  populateTimeSlots();
-  document.getElementById('errSchedule').style.display = 'none';
-}
-
-// Returns { ok, dateKey, dateLabel, timeLabel, time24h } for the currently selected schedule,
-// or { ok:false } if the selection has gone stale (e.g. "Today" but time already passed while form was open).
-function getScheduleSelection() {
-  const dateSel = document.getElementById('schedDate');
-  const timeSel = document.getElementById('schedTime');
-  const offset = parseInt(dateSel.value, 10);
-  const mins = parseInt(timeSel.value, 10);
-
-  if (isNaN(offset) || isNaN(mins) || mins < BUSINESS_OPEN_MIN || mins > BUSINESS_CLOSE_MIN) return { ok: false };
-
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-
-  if (!isDateOpen(d)) return { ok: false };
-
-  if (offset === 0) {
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    if (mins < nowMin + LEAD_TIME_MIN) return { ok: false };
-  }
-
-  return {
-    ok: true,
-    dateKey: dateKey(d),
-    dateLabel: scheduleDateLabel(offset, d),
-    timeLabel: minutesToLabel(mins),
-    time24h: minutesTo24h(mins)
-  };
-}
-
-function setMode(m) {
-  mode = m;
-  document.getElementById('btnDelivery').classList.toggle('active', m === 'delivery');
-  document.getElementById('btnPickup').classList.toggle('active', m === 'pickup');
-  document.getElementById('addressField').style.display = m === 'delivery' ? '' : 'none';
-  document.getElementById('deliveryNote').style.display = m === 'delivery' ? '' : 'none';
-}
-
-let outOfStock = {}; // { itemId: true } for items currently out of stock
-
-function renderItems() {
-  const list = document.getElementById('itemsList');
-  list.innerHTML = '';
-  MENU.forEach(item => {
-    const isOOS = !!outOfStock[item.id];
-    if (isOOS && qty[item.id] > 0) qty[item.id] = 0; // don't leave a stale qty on an item that just went out of stock
-
-    const card = document.createElement('div');
-    card.className = 'menu-item-card' + (isOOS ? ' out-of-stock' : '');
-    card.innerHTML = `
-      <div class="info">
-        <div class="name">${item.name}</div>
-        <div class="price">₱${item.price} ${item.note}</div>
-        ${isOOS ? '<div class="out-of-stock-badge">Out of Stock</div>' : ''}
-      </div>
-      <div class="qty-control">
-        <button class="qty-btn" onclick="changeQty('${item.id}',-1)" ${isOOS ? 'disabled' : ''}>−</button>
-        <span class="qty-num" id="qty_${item.id}">${qty[item.id]}</span>
-        <button class="qty-btn" onclick="changeQty('${item.id}',1)" ${isOOS ? 'disabled' : ''}>+</button>
-      </div>`;
-    list.appendChild(card);
-  });
-  updateSummary();
-}
-
-function changeQty(id, delta) {
-  if (outOfStock[id]) return; // safety net - buttons are disabled, but guard anyway
-  qty[id] = Math.max(0, qty[id] + delta);
-  document.getElementById('qty_' + id).textContent = qty[id];
-  updateSummary();
-}
-
-function updateSummary() {
-  const box = document.getElementById('summaryBox');
-  const lines = MENU.filter(m => qty[m.id] > 0);
-  if (!lines.length) {
-    box.innerHTML = '<div class="summary-row" style="color:#7a6040;font-style:italic;">No items selected yet.</div>';
-    return;
-  }
-  let total = 0;
-  let html = '';
-  lines.forEach(m => {
-    const sub = m.price * qty[m.id];
-    total += sub;
-    html += `<div class="summary-row"><span>${m.name} × ${qty[m.id]}</span><span>₱${sub}</span></div>`;
-  });
-  html += `<div class="summary-row total"><span>Total</span><span>₱${total}</span></div>`;
-  box.innerHTML = html;
-}
-
-function submitOrder() {
-  let valid = true;
-
-  const name = document.getElementById('custName').value.trim();
-  document.getElementById('errName').style.display = name ? 'none' : 'block';
-  if (!name) valid = false;
-
-  const contact = document.getElementById('custContact').value.trim();
-  document.getElementById('errContact').style.display = contact ? 'none' : 'block';
-  if (!contact) valid = false;
-
-  const pin = document.getElementById('custPin').value.trim();
-  const pinValid = /^\d{4}$/.test(pin);
-  document.getElementById('errPin').style.display = pinValid ? 'none' : 'block';
-  if (!pinValid) valid = false;
-
-  if (mode === 'delivery') {
-    const addr = document.getElementById('custAddress').value.trim();
-    document.getElementById('errAddress').style.display = addr ? 'none' : 'block';
-    if (!addr) valid = false;
-  }
-
-  const hasItems = MENU.some(m => qty[m.id] > 0);
-  document.getElementById('errItems').style.display = hasItems ? 'none' : 'block';
-  if (!hasItems) valid = false;
-
-  // Safety net: block submission if the stock list refreshed and something
-  // in the cart went out of stock while the form was open.
-  const staleOOSItem = MENU.find(m => qty[m.id] > 0 && outOfStock[m.id]);
-  if (staleOOSItem) {
-    alert(`Paumanhin, naubusan na ng "${staleOOSItem.name}". I-adjust muna ang order.`);
-    renderItems();
-    return;
-  }
-
-  const schedule = getScheduleSelection();
-  document.getElementById('errSchedule').style.display = schedule.ok ? 'none' : 'block';
-  if (!schedule.ok) {
-    // Selection went stale (e.g. lead time passed while form was open) - refresh options
-    initSchedule();
-    valid = false;
-  }
-
-  if (!valid) return;
-
-  const items = MENU.filter(m => qty[m.id] > 0).map(m => ({
-    id: m.id,
-    name: m.name,
-    price: m.price,
-    qty: qty[m.id],
-    subtotal: m.price * qty[m.id]
-  }));
-
-  const total = items.reduce((s, i) => s + i.subtotal, 0);
-
-  const order = {
-    name,
-    contact: document.getElementById('custContact').value.trim(),
-    pin: document.getElementById('custPin').value.trim(),
-    mode,
-    address: mode === 'delivery' ? document.getElementById('custAddress').value.trim() : 'Pickup',
-    note: document.getElementById('custNote').value.trim(),
-    scheduleDate: schedule.dateKey,
-    scheduleTime: schedule.time24h,
-    scheduleLabel: `${schedule.dateLabel}, ${schedule.timeLabel}`,
-    orderTiming,
-    items,
-    total
-  };
-
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  const originalLabel = btn.textContent;
-  btn.textContent = 'Sending order...';
-
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'create', order })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
-
-      document.getElementById('successName').textContent = `Hi, ${name}!`;
-      const modeText = mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
-      document.getElementById('successMode').textContent = `${modeText} — ${schedule.dateLabel}, ${schedule.timeLabel}`;
-      document.getElementById('successTotal').textContent = `Total: ₱${total}`;
-
-      document.getElementById('orderForm').style.display = 'none';
-      document.getElementById('successScreen').style.display = 'block';
-    })
-    .catch(err => {
-      console.error(err);
-      alert('Sorry, your order could not be sent. Please try again or check your internet connection.');
-    })
-    .finally(() => {
-      btn.disabled = false;
-      btn.textContent = originalLabel;
-    });
-}
-
-function resetForm() {
-  MENU.forEach(m => qty[m.id] = 0);
-  document.getElementById('custName').value = '';
-  document.getElementById('custContact').value = '';
-  document.getElementById('custPin').value = '';
-  document.getElementById('custAddress').value = '';
-  document.getElementById('custNote').value = '';
-  setMode('delivery');
-  initTimingDefault();
-  initSchedule();
-  renderItems();
-  document.getElementById('orderForm').style.display = '';
-  document.getElementById('successScreen').style.display = 'none';
-}
-
-function switchTab(tab) {
-  document.getElementById('tabOrder').classList.toggle('active', tab === 'order');
-  document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
-
-  const showOrder = tab === 'order';
-  document.getElementById('orderForm').style.display = showOrder ? '' : 'none';
-  document.getElementById('successScreen').style.display = 'none';
-  document.getElementById('myOrdersView').style.display = showOrder ? 'none' : '';
-}
-
-function formatOrderDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-PH', { month:'short', day:'numeric' })
-    + ' ' + d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
-}
-
-function lookupMyOrders() {
-  const contact = document.getElementById('lookupContact').value.trim();
-  const pin = document.getElementById('lookupPin').value.trim();
-  const errEl = document.getElementById('lookupError');
-  const listEl = document.getElementById('myOrdersList');
-  const btn = document.getElementById('lookupBtn');
-
-  errEl.style.display = 'none';
-  listEl.innerHTML = '';
-
-  if (!contact || !/^\d{4}$/.test(pin)) {
-    errEl.textContent = 'Please enter your contact number and 4-digit PIN.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  btn.disabled = true;
-  const originalLabel = btn.textContent;
-  btn.textContent = 'Searching...';
-  listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:16px 0;">Searching...</div>';
-
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'myOrders', contact, pin })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
-      renderMyOrders(data.orders);
-    })
-    .catch(err => {
-      listEl.innerHTML = '';
-      errEl.textContent = err.message || 'Unable to load. Please try again.';
-      errEl.style.display = 'block';
-    })
-    .finally(() => {
-      btn.disabled = false;
-      btn.textContent = originalLabel;
-    });
-}
-
-function renderMyOrders(orders) {
-  const listEl = document.getElementById('myOrdersList');
-  if (!orders.length) {
-    listEl.innerHTML = '<div style="text-align:center;color:#7a6040;font-size:13px;padding:20px 0;">No orders found for this number.</div>';
-    return;
-  }
-  listEl.innerHTML = '';
-  orders.forEach(o => {
-    const card = document.createElement('div');
-    card.className = 'my-order-card';
-    const itemsHtml = o.items.map(i =>
-      `<div class="my-order-item-row"><span>${i.name} × ${i.qty}</span><span>₱${i.subtotal}</span></div>`
-    ).join('');
-    const modeLabel = o.mode === 'delivery' ? '🛵 Delivery' : '🏃 Pickup';
-    const scheduleHtml = o.scheduleLabel
-      ? `<div class="my-order-date" style="margin-top:2px;">⏰ ${o.scheduleLabel}</div>`
-      : '';
-
-    card.innerHTML = `
-      <div class="my-order-header">
-        <div>
-          <div class="my-order-id">${o.id}</div>
-          <div class="my-order-date">${formatOrderDate(o.date)}</div>
-          ${scheduleHtml}
-        </div>
-        <span class="my-order-badge badge-${o.status}">${o.status}</span>
-      </div>
-      <div class="my-order-items">${itemsHtml}</div>
-      <div class="my-order-footer">
-        <span>${modeLabel}</span>
-        <span class="my-order-total">₱${o.total}</span>
-      </div>`;
-    listEl.appendChild(card);
-  });
-}
-
-function loadScheduleOverrides() {
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'getScheduleOverrides' })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.ok && data.overrides) {
-        scheduleOverrides = data.overrides;
-        initTimingDefault();
-        initSchedule();
-        // Admin panel may have already rendered with stale (empty) overrides
-        // before this fetch resolved - re-render now that we have real data.
-        if (adminUnlocked) renderAdminSchedule();
-      }
-    })
-    .catch(() => { /* keep default Mon–Wed rule if backend isn't reachable */ });
-}
-
-function loadMenuStock() {
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'getMenuStock' })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.ok && data.outOfStock) {
-        outOfStock = data.outOfStock;
-        renderItems();
-        // Admin panel may have already rendered with stale (empty) stock data
-        // before this fetch resolved - re-render now that we have real data.
-        if (adminUnlocked) renderAdminStock();
-      }
-    })
-    .catch(() => { /* assume everything in stock if backend isn't reachable */ });
-}
-
-let adminUnlocked = false;
-let adminKeyEntered = null;
-
-function initAdmin() {
-  const isAdminUrl = new URLSearchParams(location.search).get('admin') === '1';
-  if (!isAdminUrl) return;
-
-  const key = prompt('Enter admin passcode:');
-  if (key !== ADMIN_KEY) {
-    alert('Incorrect passcode.');
-    return;
-  }
-
-  adminUnlocked = true;
-  adminKeyEntered = key;
-
-  document.querySelector('.top-tabs').style.display = 'none';
-  document.getElementById('orderForm').style.display = 'none';
-  document.getElementById('myOrdersView').style.display = 'none';
-  document.getElementById('successScreen').style.display = 'none';
-  document.getElementById('adminView').style.display = '';
-
-  renderAdminSchedule();
-  renderAdminStock();
-}
-
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-function renderAdminSchedule() {
-  const list = document.getElementById('adminScheduleList');
-  list.innerHTML = '';
-
-  for (let offset = 0; offset < SCHEDULE_LOOKAHEAD_DAYS; offset++) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    const key = dateKey(d);
-    const isDefaultOpen = OPEN_WEEKDAYS.includes(d.getDay());
-    const override = scheduleOverrides[key]; // 'open' | 'closed' | undefined
-
-    const status = override || (isDefaultOpen ? 'default-open' : 'default-closed');
-
-    const row = document.createElement('div');
-    row.className = 'admin-day-row';
-
-    const info = document.createElement('div');
-    info.className = 'admin-day-info';
-    info.innerHTML = `<span class="admin-day-name">${WEEKDAY_NAMES[d.getDay()]}${offset === 0 ? ' (Today)' : ''}</span>
-      <span class="admin-day-date">${dateLabel(d)}${override ? '' : (isDefaultOpen ? ' · default open' : ' · default closed')}</span>`;
-
-    const btn = document.createElement('button');
-    btn.className = 'admin-status-btn ' + (
-      override === 'open' ? 'status-open' : override === 'closed' ? 'status-closed' : 'status-default'
-    );
-    btn.textContent = override === 'open' ? 'Open (forced)' : override === 'closed' ? 'Closed (forced)' : 'Default';
-    btn.onclick = () => cycleOverride(key, override);
-
-    row.appendChild(info);
-    row.appendChild(btn);
-    list.appendChild(row);
-  }
-}
-
-function cycleOverride(key, currentOverride) {
-  // Cycle: default -> open -> closed -> default
-  const previous = currentOverride;
-  const next = currentOverride === undefined ? 'open' : currentOverride === 'open' ? 'closed' : undefined;
-
-  if (next === undefined) {
-    delete scheduleOverrides[key];
-  } else {
-    scheduleOverrides[key] = next;
-  }
-
-  renderAdminSchedule();
-  saveOverride(key, next, previous);
-}
-
-function saveOverride(dateKeyValue, status, previousStatus) {
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action: 'setScheduleOverride',
-      adminKey: adminKeyEntered,
-      date: dateKeyValue,
-      status: status || 'default' // 'open' | 'closed' | 'default'
-    })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) {
-        // Save failed server-side (e.g. wrong admin key, backend not updated yet) -
-        // roll back the optimistic UI change so it doesn't lie about what's saved.
-        if (previousStatus === undefined) {
-          delete scheduleOverrides[dateKeyValue];
-        } else {
-          scheduleOverrides[dateKeyValue] = previousStatus;
-        }
-        renderAdminSchedule();
-        alert('Could not save: ' + (data.error || 'Unknown error'));
-      }
-    })
-    .catch(() => {
-      if (previousStatus === undefined) {
-        delete scheduleOverrides[dateKeyValue];
-      } else {
-        scheduleOverrides[dateKeyValue] = previousStatus;
-      }
-      renderAdminSchedule();
-      alert('Could not save to server. Check your internet connection and try again.');
-    });
-}
-
-function renderAdminStock() {
-  const list = document.getElementById('adminStockList');
-  list.innerHTML = '';
-
-  MENU.forEach(item => {
-    const isOOS = !!outOfStock[item.id];
-
-    const row = document.createElement('div');
-    row.className = 'admin-day-row';
-
-    const info = document.createElement('div');
-    info.className = 'admin-day-info';
-    info.innerHTML = `<span class="admin-day-name">${item.name}</span>
-      <span class="admin-day-date">₱${item.price} ${item.note}</span>`;
-
-    const btn = document.createElement('button');
-    btn.className = 'admin-status-btn ' + (isOOS ? 'status-closed' : 'status-open');
-    btn.textContent = isOOS ? 'Out of Stock' : 'In Stock';
-    btn.onclick = () => cycleStock(item.id, isOOS);
-
-    row.appendChild(info);
-    row.appendChild(btn);
-    list.appendChild(row);
-  });
-}
-
-function cycleStock(itemId, currentlyOOS) {
-  const next = !currentlyOOS; // toggle
-  if (next) {
-    outOfStock[itemId] = true;
-  } else {
-    delete outOfStock[itemId];
-  }
-
-  renderAdminStock();
-  renderItems(); // reflect immediately on the ordering form too
-  saveStock(itemId, next, currentlyOOS);
-}
-
-function saveStock(itemId, nowOOS, previouslyOOS) {
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action: 'setMenuStock',
-      adminKey: adminKeyEntered,
-      itemId: itemId,
-      status: nowOOS ? 'out_of_stock' : 'in_stock'
-    })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.ok) {
-        if (previouslyOOS) { outOfStock[itemId] = true; } else { delete outOfStock[itemId]; }
-        renderAdminStock();
-        renderItems();
-        alert('Could not save: ' + (data.error || 'Unknown error'));
-      }
-    })
-    .catch(() => {
-      if (previouslyOOS) { outOfStock[itemId] = true; } else { delete outOfStock[itemId]; }
-      renderAdminStock();
-      renderItems();
-      alert('Could not save to server. Check your internet connection and try again.');
-    });
-}
-
-renderItems();
-initTimingDefault();
-initSchedule();
-loadScheduleOverrides();
-loadMenuStock();
-initAdmin();
 </script>
 </body>
 </html>
