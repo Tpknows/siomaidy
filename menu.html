@@ -313,15 +313,32 @@ function renderJpg() {
       // html2canvas sometimes partially renders complex inline <svg> elements
       // (paths/ellipses get cut off, especially at higher scale). Swapping
       // each svg for a rasterized <img> in the clone fixes this reliably.
+      //
+      // Sizing the <img> from getBoundingClientRect() on the CLONED svg was
+      // unreliable — the offscreen clone isn't always fully laid out yet
+      // when onclone runs, so the measured rect could come back wrong,
+      // which visually showed up as the logo badge getting cropped in half.
+      // Reading the width/height straight off the SVG's own attributes
+      // (which the markup already sets explicitly) avoids that entirely.
       clonedDoc.querySelectorAll('svg').forEach(function(svg) {
         var svgString = new XMLSerializer().serializeToString(svg);
         var dataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
         var img = document.createElement('img');
         img.src = dataUri;
         img.className = svg.getAttribute('class') || '';
-        var rect = svg.getBoundingClientRect();
-        img.style.width = rect.width + 'px';
-        img.style.height = rect.height + 'px';
+
+        var width = svg.getAttribute('width');
+        var height = svg.getAttribute('height');
+        if (!width || !height) {
+          // Fall back to the bounding rect only when the svg has no
+          // explicit width/height attributes to read directly.
+          var rect = svg.getBoundingClientRect();
+          width = width || rect.width || 24;
+          height = height || rect.height || 24;
+        }
+
+        img.style.width = width + 'px';
+        img.style.height = height + 'px';
         img.style.display = 'block';
         if (svg.parentNode) {
           svg.parentNode.replaceChild(img, svg);
