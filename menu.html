@@ -285,6 +285,46 @@ function addItem() {
   list.appendChild(note);
 }
 
+// Converts one <svg> element to a rasterized PNG data URL via an offscreen
+// canvas, using img.decode() to guarantee the image is fully ready first.
+function rasterizeSvgToPng(svg) {
+  return new Promise(function(resolve) {
+    var svgString = new XMLSerializer().serializeToString(svg);
+    var svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+
+    var width = parseInt(svg.getAttribute('width'), 10);
+    var height = parseInt(svg.getAttribute('height'), 10);
+    if (!width || !height) {
+      var rect = svg.getBoundingClientRect();
+      width = width || rect.width || 24;
+      height = height || rect.height || 24;
+    }
+
+    var tempImg = new Image();
+    tempImg.src = svgDataUri;
+
+    function draw() {
+      var scaleFactor = 3; // extra-crisp since the final capture is also scaled
+      var canvas = document.createElement('canvas');
+      canvas.width = width * scaleFactor;
+      canvas.height = height * scaleFactor;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+      resolve({ dataUrl: canvas.toDataURL('image/png'), width: width, height: height });
+    }
+
+    if (tempImg.decode) {
+      tempImg.decode().then(draw).catch(function() {
+        tempImg.onload = draw;
+        tempImg.onerror = function() { resolve(null); };
+      });
+    } else {
+      tempImg.onload = draw;
+      tempImg.onerror = function() { resolve(null); };
+    }
+  });
+}
+
 function downloadAsJpg() {
   document.fonts.ready.then(() => renderJpg());
 }
@@ -303,69 +343,41 @@ function renderJpg() {
   removeButtons.forEach(el => el.style.display = 'none');
   if (addBtn) addBtn.style.display = 'none';
 
-  html2canvas(wrapper, {
-    backgroundColor: '#2B1610',
-    scale: 3,
-    useCORS: true,
-    scrollX: 0,
-    scrollY: 0,
-    onclone: function(clonedDoc) {
-      // html2canvas sometimes partially renders complex inline <svg> elements
-      // (paths/ellipses get cut off, especially at higher scale).
-      //
-      // The first fix attempt swapped each svg for an <img> pointing at a
-      // base64 SVG data URI. That still came out cropped, because
-      // html2canvas has a known race condition: it doesn't reliably wait
-      // for an <img src="data:image/svg+xml..."> to finish decoding before
-      // drawing it to canvas, so only whatever had loaded by that instant
-      // got captured.
-      //
-      // Fix: rasterize each SVG to a real PNG (via an offscreen canvas)
-      // *before* handing control back to html2canvas, and return a Promise
-      // from onclone so html2canvas actually waits for every conversion to
-      // finish loading first. PNGs don't have the SVG-decode race issue.
-      var svgs = Array.prototype.slice.call(clonedDoc.querySelectorAll('svg'));
+  // IMPORTANT: do every SVG->PNG conversion BEFORE calling html2canvas at
+  // all, not inside its onclone callback. html2canvas 1.4.1 doesn't
+  // reliably await a Promise returned from onclone, so slow/complex
+  // conversions (like the large logo badge) could still be mid-flight when
+  // it snapshotted the DOM - falling back to capturing the original live
+  // <svg>, which is what was actually cropping it every time. Pre-building
+  // a plain array of {dataUrl, width, height} first means onclone only has
+  // to do synchronous DOM swaps, so there's nothing left to race.
+  const originalSvgs = Array.from(card.querySelectorAll('svg'));
 
-      var conversions = svgs.map(function(svg) {
-        return new Promise(function(resolve) {
-          var svgString = new XMLSerializer().serializeToString(svg);
-          var svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
-
-          var width = parseInt(svg.getAttribute('width'), 10);
-          var height = parseInt(svg.getAttribute('height'), 10);
-          if (!width || !height) {
-            var rect = svg.getBoundingClientRect();
-            width = width || rect.width || 24;
-            height = height || rect.height || 24;
+  Promise.all(originalSvgs.map(rasterizeSvgToPng)).then(results => {
+    return html2canvas(wrapper, {
+      backgroundColor: '#2B1610',
+      scale: 3,
+      useCORS: true,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: function(clonedDoc) {
+        const clonedCard = clonedDoc.getElementById('menuCard');
+        const clonedSvgs = Array.from(clonedCard.querySelectorAll('svg'));
+        clonedSvgs.forEach(function(clonedSvg, i) {
+          const result = results[i];
+          if (!result) return; // conversion failed for this one - leave the live svg as a fallback
+          const img = clonedDoc.createElement('img');
+          img.src = result.dataUrl;
+          img.className = clonedSvg.getAttribute('class') || '';
+          img.style.width = result.width + 'px';
+          img.style.height = result.height + 'px';
+          img.style.display = 'block';
+          if (clonedSvg.parentNode) {
+            clonedSvg.parentNode.replaceChild(img, clonedSvg);
           }
-
-          var tempImg = new Image();
-          tempImg.onload = function() {
-            var scaleFactor = 3; // extra-crisp since the final capture is also scaled
-            var canvas = document.createElement('canvas');
-            canvas.width = width * scaleFactor;
-            canvas.height = height * scaleFactor;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
-
-            var finalImg = document.createElement('img');
-            finalImg.src = canvas.toDataURL('image/png');
-            finalImg.className = svg.getAttribute('class') || '';
-            finalImg.style.width = width + 'px';
-            finalImg.style.height = height + 'px';
-            finalImg.style.display = 'block';
-            if (svg.parentNode) {
-              svg.parentNode.replaceChild(finalImg, svg);
-            }
-            resolve();
-          };
-          tempImg.onerror = function() { resolve(); }; // don't let one bad icon block the whole export
-          tempImg.src = svgDataUri;
         });
-      });
-
-      return Promise.all(conversions);
-    }
+      }
+    });
   }).then(canvas => {
     const link = document.createElement('a');
     link.download = 'siomai-d-menu.jpg';
