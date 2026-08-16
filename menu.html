@@ -311,39 +311,60 @@ function renderJpg() {
     scrollY: 0,
     onclone: function(clonedDoc) {
       // html2canvas sometimes partially renders complex inline <svg> elements
-      // (paths/ellipses get cut off, especially at higher scale). Swapping
-      // each svg for a rasterized <img> in the clone fixes this reliably.
+      // (paths/ellipses get cut off, especially at higher scale).
       //
-      // Sizing the <img> from getBoundingClientRect() on the CLONED svg was
-      // unreliable — the offscreen clone isn't always fully laid out yet
-      // when onclone runs, so the measured rect could come back wrong,
-      // which visually showed up as the logo badge getting cropped in half.
-      // Reading the width/height straight off the SVG's own attributes
-      // (which the markup already sets explicitly) avoids that entirely.
-      clonedDoc.querySelectorAll('svg').forEach(function(svg) {
-        var svgString = new XMLSerializer().serializeToString(svg);
-        var dataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
-        var img = document.createElement('img');
-        img.src = dataUri;
-        img.className = svg.getAttribute('class') || '';
+      // The first fix attempt swapped each svg for an <img> pointing at a
+      // base64 SVG data URI. That still came out cropped, because
+      // html2canvas has a known race condition: it doesn't reliably wait
+      // for an <img src="data:image/svg+xml..."> to finish decoding before
+      // drawing it to canvas, so only whatever had loaded by that instant
+      // got captured.
+      //
+      // Fix: rasterize each SVG to a real PNG (via an offscreen canvas)
+      // *before* handing control back to html2canvas, and return a Promise
+      // from onclone so html2canvas actually waits for every conversion to
+      // finish loading first. PNGs don't have the SVG-decode race issue.
+      var svgs = Array.prototype.slice.call(clonedDoc.querySelectorAll('svg'));
 
-        var width = svg.getAttribute('width');
-        var height = svg.getAttribute('height');
-        if (!width || !height) {
-          // Fall back to the bounding rect only when the svg has no
-          // explicit width/height attributes to read directly.
-          var rect = svg.getBoundingClientRect();
-          width = width || rect.width || 24;
-          height = height || rect.height || 24;
-        }
+      var conversions = svgs.map(function(svg) {
+        return new Promise(function(resolve) {
+          var svgString = new XMLSerializer().serializeToString(svg);
+          var svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
 
-        img.style.width = width + 'px';
-        img.style.height = height + 'px';
-        img.style.display = 'block';
-        if (svg.parentNode) {
-          svg.parentNode.replaceChild(img, svg);
-        }
+          var width = parseInt(svg.getAttribute('width'), 10);
+          var height = parseInt(svg.getAttribute('height'), 10);
+          if (!width || !height) {
+            var rect = svg.getBoundingClientRect();
+            width = width || rect.width || 24;
+            height = height || rect.height || 24;
+          }
+
+          var tempImg = new Image();
+          tempImg.onload = function() {
+            var scaleFactor = 3; // extra-crisp since the final capture is also scaled
+            var canvas = document.createElement('canvas');
+            canvas.width = width * scaleFactor;
+            canvas.height = height * scaleFactor;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+
+            var finalImg = document.createElement('img');
+            finalImg.src = canvas.toDataURL('image/png');
+            finalImg.className = svg.getAttribute('class') || '';
+            finalImg.style.width = width + 'px';
+            finalImg.style.height = height + 'px';
+            finalImg.style.display = 'block';
+            if (svg.parentNode) {
+              svg.parentNode.replaceChild(finalImg, svg);
+            }
+            resolve();
+          };
+          tempImg.onerror = function() { resolve(); }; // don't let one bad icon block the whole export
+          tempImg.src = svgDataUri;
+        });
       });
+
+      return Promise.all(conversions);
     }
   }).then(canvas => {
     const link = document.createElement('a');
